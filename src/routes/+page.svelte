@@ -1,562 +1,263 @@
 <script lang="ts">
-	import { onMount, untrack } from "svelte";
-	import { fly } from "svelte/transition";
-	import {
-		Bookmark,
-		RotateCcw,
-		ChevronRight,
-		Send,
-		BookOpen,
-		Info,
-		MoreHorizontal,
-		CheckSquare,
-		Image as ImageIcon,
-		Check,
-		Plus,
-		ChevronDown,
-		Clock,
-		Trash,
-	} from "@lucide/svelte";
-
-	// --- Types ---
-	// Moved to src/app.d.ts
-
-	let { data } = $props();
-
-	// --- Mock Data ---
-	// Data is now loaded in +page.server.ts
-	// Initialize local state from server data
-	let questions: Question[] = $state(untrack(() => data.questions));
-
-	$effect(() => {
-		questions = data.questions;
-	});
-
-	let currentQuestionIndex = $state(0); // Start at Q1
-	let currentPageIndex = $state(0);
-	let timeElapsed = $state(0);
-	let slideDirection = $state(1); // 1 = forward, -1 = backward
-
-	// --- Derived State ---
-	const QUESTIONS_PER_PAGE = 5;
-	let visibleQuestions = $derived(
-		questions.slice(
-			currentPageIndex * QUESTIONS_PER_PAGE,
-			(currentPageIndex + 1) * QUESTIONS_PER_PAGE,
-		),
-	);
-	let currentQuestion = $derived(questions[currentQuestionIndex]); // Still useful for singular referencing if needed
-
-	let stats = $derived({
-		total: questions.length,
-		visited: questions.filter((q) => q.status !== "not-visited").length,
-		notVisited: questions.filter((q) => q.status === "not-visited").length,
-		answered: questions.filter(
-			(q) => q.status === "answered" || q.status === "marked-answered",
-		).length,
-		notAnswered: questions.filter(
-			(q) => q.status === "not-answered" || q.status === "marked",
-		).length,
-		marked: questions.filter(
-			(q) => q.status === "marked" || q.status === "marked-answered",
-		).length,
-		bookmarked: questions.filter((q) => q.isBookmarked).length,
-	});
-
-	// --- Timer Logic ---
-	let timerInterval: ReturnType<typeof setInterval>;
-
-	onMount(() => {
-		timerInterval = setInterval(() => {
-			timeElapsed++;
-		}, 1000);
-		return () => clearInterval(timerInterval);
-	});
-
-	function formatTime(seconds: number) {
-		const h = Math.floor(seconds / 3600)
-			.toString()
-			.padStart(2, "0");
-		const m = Math.floor((seconds % 3600) / 60)
-			.toString()
-			.padStart(2, "0");
-		const s = (seconds % 60).toString().padStart(2, "0");
-		return { h, m, s };
-	}
-
-	let timeDisplay = $derived(formatTime(timeElapsed));
-
-	// --- Actions ---
-	function selectOption(questionId: number, optionIndex: number) {
-		const qIndex = questions.findIndex((q) => q.id === questionId);
-		if (qIndex !== -1) {
-			questions[qIndex].selectedOption = optionIndex;
-			questions[qIndex].status = "answered";
-		}
-	}
-
-	function goToQuestion(index: number) {
-		const targetPage = Math.floor(index / QUESTIONS_PER_PAGE);
-		if (targetPage > currentPageIndex) {
-			slideDirection = 1;
-		} else if (targetPage < currentPageIndex) {
-			slideDirection = -1;
-		}
-
-		if (questions[index].status === "not-visited") {
-			questions[index].status = "not-answered";
-		}
-
-		currentQuestionIndex = index;
-		currentPageIndex = targetPage;
-	}
-
-	function nextPage() {
-		if ((currentPageIndex + 1) * QUESTIONS_PER_PAGE < questions.length) {
-			slideDirection = 1;
-			currentPageIndex++;
-		}
-	}
-
-	function prevPage() {
-		if (currentPageIndex > 0) {
-			slideDirection = -1;
-			currentPageIndex--;
-		}
-	}
-
-	function toggleBookmark(questionId: number) {
-		const qIndex = questions.findIndex((q) => q.id === questionId);
-		if (qIndex !== -1) {
-			questions[qIndex].isBookmarked = !questions[qIndex].isBookmarked;
-		}
-	}
-
-	// --- Helpers for Styles ---
-	function getStatusClass(status: QuestionStatus, isCurrent: boolean) {
-		if (isCurrent)
-			return "border-2 border-purple-600 bg-purple-50 text-purple-700 font-bold";
-		switch (status) {
-			case "answered":
-				return "bg-green-100 text-green-700 border border-green-200";
-			case "marked":
-				return "bg-purple-100 text-purple-700 border border-purple-200";
-			case "not-answered":
-				return "bg-red-50 text-red-700 border border-red-200";
-		}
-		return "bg-slate-50 text-slate-500 border border-slate-200 hover:bg-slate-100";
-	}
-
-	function getPaletteButtonClass(q: Question) {
-		const isCurrent = q.id === currentQuestion.id;
-		const base =
-			"w-9 h-9 flex items-center justify-center rounded-md text-sm font-medium transition-colors";
-
-		if (isCurrent) {
-			return `${base} border-2 border-indigo-900 text-indigo-900 bg-white font-bold shadow-sm`;
-		}
-
-		if (q.status === "answered") {
-			return `${base} bg-green-100 text-green-700 border border-green-200`;
-		}
-
-		if (q.status === "marked" || q.status === "marked-answered") {
-			return `${base} bg-purple-100 text-purple-700 border border-purple-200`;
-		}
-
-		if (q.status === "not-answered" && q.selectedOption === null) {
-			return `${base} bg-slate-50 text-slate-600 border border-slate-200 hover:bg-slate-100`;
-		}
-
-		return `${base} bg-slate-50 text-slate-400 border border-slate-200 hover:bg-slate-100`;
-	}
+	// Reverted to the rounded-card hero layout within a white page container 
+	// to perfectly match the provided design screenshot using Tailwind.
 </script>
 
-{#snippet questionCard(question: Question)}
-	<div
-		class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mb-3"
+<svelte:head>
+	<link rel="preconnect" href="https://fonts.googleapis.com" />
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
+	<link
+		href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap"
+		rel="stylesheet"
+	/>
+</svelte:head>
+
+<div class="w-full min-h-screen overflow-x-hidden font-sans antialiased text-gray-900 bg-[#f9f9f9]">
+	<!-- HERO SECTION - Edge-to-Edge -->
+	<section
+		class="relative w-full bg-gradient-to-b from-[#bdc0c2] via-[#e5e6e8] to-[#f4f4f4] px-6 md:px-12 lg:px-20 pt-6 pb-10 shadow-sm"
 	>
-		<!-- Card Header -->
-		<div class="px-4 py-2.5 flex items-center justify-between">
-			<div
-				class="flex items-center gap-2 text-slate-700 font-medium cursor-pointer hover:bg-slate-50 p-1 rounded-md transition-colors"
-			>
-				<div class="p-0.5 rounded-sm border border-slate-300">
-					<CheckSquare class="w-3 h-3 text-slate-500" />
+		<div class="max-w-[1400px] mx-auto">
+			<!-- HEADER -->
+			<header class="flex flex-wrap justify-between items-center pb-6">
+				<!-- Logo -->
+				<div class="flex items-center gap-3 font-bold text-gray-900 text-[0.95rem]">
+					<div class="flex gap-1 rotate-45">
+						<div class="w-1.5 h-3 bg-black rounded-[2px] -translate-y-0.5"></div>
+						<div class="w-1.5 h-3 bg-black rounded-[2px] translate-y-0.5"></div>
+					</div>
+					<span>/ Sales@reelers.io</span>
 				</div>
-				<span class="text-sm font-medium">Multiple choice</span>
-				<ChevronDown class="w-3.5 h-3.5 text-slate-400" />
-			</div>
-			<div class="flex items-center gap-3">
-				<div class="flex items-center gap-2">
-					<span class="text-xs font-medium text-slate-600">Required</span>
+
+				<!-- Desktop Nav -->
+				<nav class="hidden md:flex items-center gap-6 text-[0.85rem] font-bold text-gray-900">
+					<a href="#product" class="hover:text-gray-500 transition-colors">Product</a>
+					<span class="text-xl text-gray-400 mt-[-8px]">.</span>
+					<a href="#solutions" class="hover:text-gray-500 transition-colors">Solutions</a>
+					<span class="text-xl text-gray-400 mt-[-8px]">.</span>
+					<a href="#pricing" class="hover:text-gray-500 transition-colors">Pricing</a>
+					<span class="text-xl text-gray-400 mt-[-8px]">.</span>
+					<a href="#developers" class="hover:text-gray-500 transition-colors">Developers</a>
+				</nav>
+
+				<!-- Auth -->
+				<div class="flex flex-wrap items-center gap-5">
+					<button class="font-bold text-gray-900 text-[0.9rem] hover:text-gray-600 transition-colors">
+						Log in
+					</button>
 					<button
-						class="w-7 h-4 rounded-full bg-emerald-500 relative transition-colors"
-						title="Toggle Required"
+						class="border-[1.5px] border-black bg-transparent px-5 py-2.5 rounded-full font-bold text-gray-900 text-[0.85rem] flex items-center gap-1.5 hover:bg-black/5 transition-colors"
 					>
-						<span
-							class="absolute right-0.5 top-0.5 w-3 h-3 bg-white rounded-full shadow-sm"
-						></span>
+						Get it Now <span class="text-gray-500 font-medium ml-1">— It's Free</span>
 					</button>
 				</div>
-				<button
-					class="text-slate-400 hover:text-slate-600 p-1 rounded-md hover:bg-slate-100"
-				>
-					<MoreHorizontal class="w-4 h-4" />
-				</button>
-			</div>
-		</div>
+			</header>
 
-		<!-- Internal Divider (Header) -->
-		<div class="h-px bg-slate-200 mx-4 opacity-60"></div>
-
-		<div class="p-4">
-			<!-- Question Section -->
-			<div class="mb-4">
-				<div class="flex items-start gap-2.5 mb-2">
-					<div
-						class="w-5 h-5 bg-slate-800 text-white rounded flex items-center justify-center text-xs font-bold shrink-0 mt-0.5"
-					>
-						?
-					</div>
-					<h2 class="font-semibold text-slate-800 text-sm leading-relaxed">
-						Question {question.id} <span class="text-red-500">*</span>
-					</h2>
-				</div>
-
-				<!-- Question Text -->
-				<div
-					class="bg-slate-50 rounded-lg p-3 text-slate-800 text-sm leading-6 border border-slate-100"
-				>
-					{#each question.text.split("\n\n") as paragraph}
-						<p class="mb-2 last:mb-0">{paragraph}</p>
-					{/each}
-				</div>
-			</div>
-
-			<!-- Choices Section -->
-			<div class="space-y-3">
-				<div class="space-y-1.5">
-					{#each question.options as option, idx}
-						<button
-							class="w-full flex items-center group p-1 rounded-lg border transition-all duration-300 relative text-left
-                            {question.selectedOption === idx
-								? 'border-indigo-600 bg-indigo-50/30 animate-bounce-custom z-10 ring-1 ring-indigo-600'
-								: 'border-transparent hover:bg-slate-50'}"
-							onclick={() => selectOption(question.id, idx)}
-						>
-							<!-- Radio Circle Area -->
-							<div class="w-10 h-8 flex items-center justify-center shrink-0">
-								<div
-									class="w-4 h-4 rounded-full border-2 flex items-center justify-center transition-colors
-                                    {question.selectedOption === idx
-										? 'border-indigo-600 bg-indigo-600'
-										: 'border-slate-300 bg-white'}"
-								>
-									{#if question.selectedOption === idx}
-										<Check class="w-2.5 h-2.5 text-white" />
-									{/if}
-								</div>
-							</div>
-
-							<!-- Option Text Box -->
-							<div
-								class="flex-1 bg-slate-50 border border-slate-200 rounded px-3 py-2 text-slate-700 text-sm font-medium transition-colors group-hover:bg-slate-100 flex items-center gap-2.5
-                                {question.selectedOption === idx
-									? 'bg-white border-indigo-200'
-									: ''}"
+			<!-- MAIN HERO CONTENT -->
+			<main class="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center mt-4 lg:mt-8">
+				<!-- LEFT COLUMN: Typography & Action -->
+				<div class="flex flex-col gap-4 lg:pr-8 text-center lg:text-left items-center lg:items-start relative z-10">
+					<!-- Badge -->
+					<div class="inline-flex items-center gap-4 rounded-full">
+						<div class="w-9 h-9 bg-black text-white rounded-full flex justify-center items-center shrink-0">
+							<svg
+								viewBox="0 0 24 24"
+								width="14"
+								height="14"
+								stroke="currentColor"
+								stroke-width="2.5"
+								fill="none"
+								class="ml-0.5"
+								aria-hidden="true"
 							>
-								<!-- Letter Label -->
-								<span
-									class="flex items-center justify-center w-5 h-5 rounded bg-white border border-slate-200 text-[10px] font-bold text-slate-500 shadow-sm shrink-0"
-								>
-									{String.fromCharCode(65 + idx)}
-								</span>
+								<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+								<circle cx="9" cy="7" r="4" />
+								<path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+								<path d="M16 3.13a4 4 0 0 1 0 7.75" />
+							</svg>
+						</div>
+						<div class="text-[0.85rem] leading-snug text-left text-gray-900">
+							<span class="font-black tracking-tight">20M+ User</span><br />
+							<span class="text-gray-800 font-medium"
+								>Read Our <u class="font-bold decoration-2 underline-offset-4 cursor-pointer hover:text-black"
+									>Success Stories</u
+								></span
+							>
+						</div>
+					</div>
 
-								<span>{option}</span>
+					<!-- Hero Title -->
+					<h1
+						class="text-[5rem] md:text-[6.5rem] font-medium leading-[0.8] tracking-tighter text-gray-900 relative inline-block my-2"
+						style="font-family: 'Playfair Display', serif;"
+					>
+						Grow<sup
+							class="text-[2.5rem] md:text-[3rem] absolute top-2 md:top-0 -right-7 md:-right-10 font-sans font-normal text-gray-800 tracking-normal"
+							>+</sup
+						>
+					</h1>
 
-								<!-- Hover Actions -->
-								<div
-									class="ml-auto flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
-								>
-									<div class="p-1 hover:bg-slate-200 rounded text-slate-400">
-										<ImageIcon class="w-3.5 h-3.5" />
-									</div>
-									<div
-										class="p-1 hover:bg-red-50 hover:text-red-500 rounded text-slate-400"
-									>
-										<Trash class="w-3.5 h-3.5" />
-									</div>
-								</div>
+					<!-- Hero Subtitle -->
+					<p class="text-[1.05rem] leading-relaxed text-gray-800 max-w-sm m-0 font-medium pb-1">
+						Drive Sales Growth, And Harness Ai-Powered User Content — Up To 50x Faster.
+					</p>
+
+					<hr class="border-t border-black/15 my-2 w-[70%]" />
+
+					<!-- Ratings Review -->
+					<div class="flex items-center justify-center lg:justify-start gap-4">
+						<div class="relative shrink-0">
+							<img
+								src="https://randomuser.me/api/portraits/women/44.jpg"
+								alt="User"
+								class="w-10 h-10 rounded-full object-cover shadow-sm bg-white"
+							/>
+							<div class="absolute -top-1.5 -left-2 text-[#ff5733]">
+								<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+									<path d="M12 2l2 6 6 2-6 2-2 6-2-6-6-2 6-2z" />
+								</svg>
 							</div>
-						</button>
-					{/each}
-				</div>
-			</div>
-		</div>
-
-		<!-- Internal Divider (Footer) -->
-		<div class="h-px bg-slate-200 mx-4 opacity-60"></div>
-
-		<!-- Card Footer -->
-		<div
-			class="px-4 py-4 grid grid-cols-1 md:grid-cols-3 gap-6 text-[11px] text-slate-600"
-		>
-			<div class="space-y-1.5">
-				<span class="font-bold text-slate-700">Randomize Order</span>
-				<div
-					class="flex items-center justify-between bg-slate-50 border-none rounded px-2.5 py-1.5 cursor-pointer hover:bg-slate-100 transition-colors"
-				>
-					<span class="text-slate-600 font-medium">Original order</span>
-					<ChevronDown class="w-3.5 h-3.5 text-slate-400" />
-				</div>
-			</div>
-			<div class="space-y-1.5">
-				<span class="font-bold text-slate-700">Time estimate</span>
-				<div class="flex items-stretch bg-slate-50 rounded overflow-hidden">
-					<div class="px-2.5 py-1.5 bg-slate-50 font-bold text-slate-800">
-						2
-					</div>
-					<div class="w-px bg-slate-200 my-1"></div>
-					<div
-						class="px-2.5 py-1.5 bg-slate-50 text-slate-500 flex-1 flex items-center justify-between"
-					>
-						<span>Mins</span>
-						<Clock class="w-3 h-3 text-slate-400" />
-					</div>
-				</div>
-			</div>
-			<div class="space-y-1.5">
-				<span class="font-bold text-slate-700">Points</span>
-				<div class="flex items-stretch bg-slate-50 rounded overflow-hidden">
-					<div class="px-2.5 py-1.5 bg-slate-50 font-bold text-slate-800">
-						1
-					</div>
-					<div class="w-px bg-slate-200 my-1"></div>
-					<div
-						class="px-2.5 py-1.5 bg-slate-50 text-slate-500 flex-1 flex items-center justify-between"
-					>
-						<span>Pts</span>
-						<div
-							class="w-3.5 h-3.5 bg-amber-400 rounded-full flex items-center justify-center shadow-sm"
-						>
-							<Plus class="w-2 h-2 text-white" strokeWidth={3} />
+						</div>
+						<div class="flex flex-col text-[0.85rem] text-left">
+							<div class="font-semibold flex items-center gap-2 text-gray-900">
+								<span>Loved the performance</span>
+								<span class="text-gray-400 font-normal">/</span>
+								<span class="font-black flex items-center gap-1"
+									><span class="text-gray-800">★</span> 4.9</span
+								>
+							</div>
+							<div class="text-gray-600 font-medium mt-0.5">100% Satisfied</div>
 						</div>
 					</div>
-				</div>
-			</div>
-		</div>
-	</div>
-{/snippet}
 
-<div
-	class="flex flex-col min-h-screen bg-slate-50 font-sans text-slate-800 text-sm"
->
-	<!-- Header -->
-	<header
-		class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6 shrink-0 z-10 sticky top-0"
-	>
-		<div class="flex items-center gap-4 text-slate-700">
-			<h1 class="font-bold text-lg">AFCAT Test Series 2023 I</h1>
-			<ChevronRight class="w-5 h-5 text-slate-400" />
-			<span class="font-medium text-slate-600">Reasoning</span>
-		</div>
+					<hr class="border-t border-black/15 my-2 w-[70%]" />
 
-		<div class="flex items-center gap-4">
-			<button
-				class="px-4 py-2 text-slate-600 hover:bg-slate-50 rounded-md font-medium transition-colors"
-			>
-				Exit
-			</button>
-			<button
-				class="flex items-center gap-2 bg-blue-900 hover:bg-blue-800 text-white px-5 py-2 rounded-lg font-medium transition-colors shadow-sm"
-			>
-				<span>Review and Submit</span>
-				<Send class="w-4 h-4 ml-1" />
-			</button>
-		</div>
-	</header>
-
-	<div class="flex flex-1 items-start gap-4">
-		<!-- Left Sidebar: Question Palette (Simpler Grid) -->
-		<aside
-			class="w-72 bg-white border-r border-slate-200 flex flex-col shrink-0 sticky top-16 h-[calc(100vh-4rem)] overflow-y-auto custom-scrollbar"
-		>
-			<div class="p-4 space-y-6">
-				<!-- Legend -->
-				<div
-					class="flex items-center justify-end gap-3 text-xs text-slate-500 mb-2"
-				>
-					<div class="flex items-center gap-1">
-						<span
-							class="w-3 h-3 rounded-full bg-green-100 border border-green-200"
-						></span> <span>Ans</span>
-					</div>
-					<div class="flex items-center gap-1"></div>
-				</div>
-
-				<!-- Single Grid of 50 Questions -->
-				<div class="grid grid-cols-5 gap-2">
-					{#each questions as q}
+					<!-- Call To Action -->
+					<div class="flex flex-wrap justify-center lg:justify-start items-center gap-8 mt-4">
 						<button
-							onclick={() => goToQuestion(q.id - 1)}
-							class={getPaletteButtonClass(q)}
+							class="bg-black text-white px-8 py-4 rounded-full font-bold text-[0.95rem] hover:-translate-y-0.5 hover:shadow-lg transition-all duration-200"
 						>
-							{q.id.toString().padStart(2, "0")}
+							Download <span class="text-white/60 font-medium ml-1">— It's Free</span>
 						</button>
-					{/each}
-				</div>
-			</div>
-		</aside>
-
-		<!-- Main Content: Questions List -->
-		<main class="flex-1 flex flex-col min-w-0">
-			<div class="flex-1 p-6 max-w-5xl mx-auto w-full">
-				<div class="grid grid-cols-1 grid-rows-1">
-					{#key currentPageIndex}
-						<div
-							class="col-start-1 row-start-1"
-							in:fly={{ x: 50 * slideDirection, duration: 400, delay: 150 }}
-							out:fly={{ x: -50 * slideDirection, duration: 400 }}
+						<a
+							href="#pricing"
+							class="text-gray-900 font-bold text-[1rem] flex items-center gap-2 hover:opacity-75 transition-opacity group"
 						>
-							{#each visibleQuestions as question (question.id)}
-								{@render questionCard(question)}
-							{/each}
+							Our Pricing <span class="text-xl font-normal group-hover:translate-x-1 transition-transform">↗</span>
+						</a>
+					</div>
+				</div>
+
+				<!-- RIGHT COLUMN: Visuals & Floating UI -->
+				<div class="relative w-full h-[320px] sm:h-[380px] lg:h-[420px] bg-transparent flex items-center justify-center xl:justify-end mt-10 lg:mt-0">
+					<!-- Vibrant Orange Splash -->
+					<div
+						class="absolute right-[5%] lg:right-[15%] top-0 bottom-0 w-[80%] sm:w-[65%] rounded-[2.5rem] bg-gradient-to-br from-[#ff6b36] via-[#fe5115] to-[#c72600] z-0"
+					></div>
+
+					<!-- Subject Photography -->
+					<img
+						src="https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?auto=format&fit=crop&q=80&w=800&h=1000"
+						alt="Sport Model"
+						class="relative z-10 h-[105%] max-h-full object-cover object-top mr-[20%] drop-shadow-xl contrast-[1.05] saturate-[1.1]"
+					/>
+
+					<!-- FLOATING: Glass Stats Card (Top Right) -->
+					<div
+						class="absolute top-[5%] -right-[2%] lg:-right-[5%] p-6 w-44 z-20 backdrop-blur-xl bg-gradient-to-br from-white/50 to-white/10 border border-white/50 border-b-white/20 border-r-white/20 rounded-[2rem] shadow-[0_15px_30px_rgba(0,0,0,0.06)]"
+					>
+						<div class="text-[0.65rem] font-bold text-gray-700 tracking-wider mb-2">— UP TO</div>
+						<div class="text-[2.5rem] font-black leading-none mb-1.5 text-gray-900">60%</div>
+						<div class="text-[0.85rem] font-medium leading-snug text-gray-800">More sales this week</div>
+					</div>
+
+					<!-- FLOATING: Glass Product Card (Bottom Right) -->
+					<div
+						class="absolute -bottom-[5%] -right-[5%] lg:-right-[10%] p-5 flex items-center gap-5 w-[300px] z-20 backdrop-blur-xl bg-gradient-to-br from-white/50 to-white/10 border border-white/50 border-b-white/20 border-r-white/20 rounded-[2rem] shadow-[0_15px_30px_rgba(0,0,0,0.06)]"
+					>
+						<div class="flex-1 pl-1">
+							<h3 class="text-[1.1rem] font-bold text-gray-900 leading-tight mb-2">NIke Shoes<br />Jordan</h3>
+							<div class="text-2xl font-black text-gray-900 mb-2">$849.99</div>
+							<div
+								class="inline-flex items-center gap-1.5 bg-white px-2.5 py-0.5 rounded-full text-[0.8rem] font-bold text-gray-900"
+							>
+								★ 4.6
+							</div>
 						</div>
-					{/key}
-				</div>
+						<div
+							class="w-[85px] h-[85px] bg-[#f0f0f0] rounded-[1.25rem] overflow-hidden flex items-center justify-center shrink-0"
+						>
+							<img
+								src="https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&q=80&w=200"
+								alt="Shoe"
+								class="max-w-[130%] h-auto -rotate-[15deg] mix-blend-multiply"
+							/>
+						</div>
+					</div>
 
-				<!-- Action Bar -->
-				<div class="flex items-center justify-between pt-4 pb-8">
-					<button
-						class="flex items-center gap-2 px-6 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 transition-colors font-medium shadow-sm"
-						onclick={prevPage}
-						disabled={currentPageIndex === 0}
+					<!-- FLOATING: Bubble (Top Left) -->
+					<div
+						class="absolute top-[28%] left-[5%] lg:-left-[10%] z-20 bg-white px-5 py-2.5 rounded-full shadow-[0_8px_20px_rgba(0,0,0,0.08)] flex items-center gap-3"
 					>
-						Previous Page
-					</button>
-					<button
-						class="flex items-center gap-2 px-6 py-2.5 bg-slate-800 text-white rounded-lg hover:bg-slate-900 transition-all font-bold shadow-sm"
-						onclick={nextPage}
+						<div class="w-[20px] h-[20px] rounded bg-[#ff6b35] flex items-center justify-center shrink-0">
+							<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3.5" class="w-3.5 h-3.5"><path d="M20 6L9 17l-5-5" /></svg>
+						</div>
+						<span class="font-bold text-[0.85rem] text-gray-900 whitespace-nowrap">How is the fit?</span>
+					</div>
+
+					<!-- FLOATING: Bubble (Middle Left) -->
+					<div
+						class="absolute top-[42%] -left-[5%] lg:-left-[18%] z-20 bg-white px-5 py-2.5 rounded-full shadow-[0_8px_20px_rgba(0,0,0,0.08)] flex items-center gap-3"
 					>
-						Next Page
-						<ChevronRight class="w-4 h-4" />
+						<div class="w-[20px] h-[20px] rounded bg-blue-500 flex items-center justify-center shrink-0">
+							<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3.5" class="w-3.5 h-3.5"><path d="M20 6L9 17l-5-5" /></svg>
+						</div>
+						<span class="font-bold text-[0.85rem] text-gray-900 whitespace-nowrap">Do you like the design?</span>
+					</div>
+
+					<!-- FLOATING: Play Button Center -->
+					<button
+						class="absolute top-[48%] left-[30%] lg:left-[25%] -translate-x-1/2 -translate-y-1/2 w-14 h-14 bg-white rounded-full shadow-[0_12px_25px_rgba(0,0,0,0.12)] flex items-center justify-center z-20 text-gray-900 hover:scale-105 transition-transform"
+						aria-label="Play video"
+					>
+						<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" class="translate-x-[1px]" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg>
 					</button>
 				</div>
-			</div>
-		</main>
+			</main>
+		</div>
+	</section>
 
-		<!-- Right Sidebar -->
-		<aside
-			class="w-80 bg-slate-50 border-l border-slate-200 flex flex-col shrink-0 sticky top-16 h-[calc(100vh-4rem)] px-6 py-6 gap-6"
+	<!-- LOGOS SECTION -->
+	<section class="w-full pt-12 pb-10 px-6">
+		<div
+			class="max-w-[1200px] mx-auto flex flex-wrap justify-center lg:justify-between items-center gap-10 text-black/80"
 		>
-			<!-- Timer & Actions Card -->
-			<div class="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
-				<div class="text-center mb-6">
-					<div
-						class="flex items-center justify-center gap-3 font-mono text-3xl font-bold text-slate-900 tracking-wider"
-					>
-						<span>{timeDisplay.h}</span>
-						<span class="text-slate-400 text-xl">:</span>
-						<span>{timeDisplay.m}</span>
-						<span class="text-slate-400 text-xl">:</span>
-						<span>{timeDisplay.s}</span>
-					</div>
-					<div
-						class="flex justify-center gap-8 text-[10px] font-medium text-slate-400 uppercase tracking-widest mt-1"
-					>
-						<span class="w-8">Hrs</span>
-						<span class="w-8 ml-1">Min</span>
-						<span class="w-8 ml-1">Sec</span>
-					</div>
-				</div>
+			<div class="font-bold text-[1.3rem] tracking-tighter">Rakuten</div>
 
-				<div class="space-y-3">
-					<button
-						class="w-full py-2.5 px-4 bg-white border border-slate-200 rounded-lg text-slate-700 font-medium hover:bg-slate-50 transition-colors text-sm"
-					>
-						About Test
-					</button>
-					<button
-						class="w-full py-2.5 px-4 bg-white border border-slate-200 rounded-lg text-slate-700 font-medium hover:bg-slate-50 transition-colors text-sm flex items-center justify-center gap-2"
-					>
-						<BookOpen class="w-4 h-4 text-slate-500" />
-						Read Instructions
-					</button>
-				</div>
-			</div>
-
-			<!-- Overview Card -->
-			<div
-				class="bg-white rounded-xl border border-slate-200 p-6 shadow-sm flex-1 mb-6"
-			>
-				<h3
-					class="text-sm font-semibold text-slate-700 mb-4 pb-4 border-b border-slate-100"
+			<div class="font-bold text-[1.3rem] flex items-center gap-1.5 opacity-90">
+				<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+					aria-hidden="true"><circle cx="12" cy="12" r="10" /><path d="M8 12h8" /><path d="M12 8v8" /></svg
 				>
-					Overview
-				</h3>
-
-				<div class="space-y-4">
-					<div class="flex justify-between items-center text-sm">
-						<span class="text-slate-600 font-medium">Total Questions</span>
-						<span class="text-slate-900 font-bold">{stats.total}</span>
-					</div>
-					<div class="flex justify-between items-center text-sm">
-						<span class="text-slate-600 font-medium">Visited</span>
-						<span class="text-slate-900 font-bold">{stats.visited}</span>
-					</div>
-					<div class="flex justify-between items-center text-sm">
-						<span class="text-slate-600 font-medium">Not Visited</span>
-						<span class="text-slate-900 font-bold">{stats.notVisited}</span>
-					</div>
-					<div class="flex justify-between items-center text-sm">
-						<span class="text-slate-600 font-medium">Answered</span>
-						<span class="text-slate-900 font-bold">{stats.answered}</span>
-					</div>
-					<div class="flex justify-between items-center text-sm">
-						<span class="text-slate-600 font-medium">Not Answered</span>
-						<span class="text-slate-900 font-bold">{stats.notAnswered}</span>
-					</div>
-					<div class="flex justify-between items-center text-sm">
-						<span class="text-slate-600 font-medium">Marked to review</span>
-						<span class="text-slate-900 font-bold">{stats.marked}</span>
-					</div>
-					<div class="flex justify-between items-center text-sm">
-						<span class="text-slate-600 font-medium">Bookmarked</span>
-						<span class="text-slate-900 font-bold">{stats.bookmarked}</span>
-					</div>
-				</div>
+				NCR
 			</div>
-		</aside>
 
-		<!-- Right Sidebar Removed as per request to move timer and simplify -->
-	</div>
+			<div class="font-extrabold text-[1.4rem] tracking-tight opacity-95">
+				#.monday<span class="font-normal tracking-normal text-[1.35rem]">.com</span>
+			</div>
+
+			<div
+				class="text-[1.6rem] font-medium tracking-normal opacity-90"
+				style="font-family: 'Playfair Display', serif; font-style: italic;"
+			>
+				Disney
+			</div>
+
+			<div class="font-bold text-[1.3rem] flex items-center gap-2 opacity-90">
+				<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"
+					><path d="M12 2l-6 4 6 4 6-4-6-4zM6 10l-6 4 6 4 6-4-6-4zM18 10l-6 4 6 4 6-4-6-4zM12 22l-6-4v-4l6 4 6-4v4l-6 4z" /></svg
+				>
+				Dropbox
+			</div>
+		</div>
+	</section>
 </div>
-
-<style>
-	/* Custom scrollbar for the question palette */
-	.custom-scrollbar::-webkit-scrollbar {
-		width: 6px;
-	}
-	.custom-scrollbar::-webkit-scrollbar-track {
-		background: transparent;
-	}
-	.custom-scrollbar::-webkit-scrollbar-thumb {
-		background-color: #e2e8f0;
-		border-radius: 20px;
-	}
-
-	@keyframes bounce-custom {
-		0%,
-		100% {
-			transform: scale(1);
-		}
-		50% {
-			transform: scale(1.02);
-		}
-	}
-
-	:global(.animate-bounce-custom) {
-		animation: bounce-custom 0.4s ease-in-out;
-	}
-</style>

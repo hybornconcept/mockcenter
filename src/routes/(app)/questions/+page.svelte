@@ -106,10 +106,10 @@
 			<nav class="flex items-center gap-8">
 				{#each ["All subjects", "Sciences", "Arts", "Commercial", "General"] as tab}
 					<button
-						class="pb-4 text-sm font-bold transition-all relative {activeTab ===
+						class="pb-2 text-[14px] font-normal transition-all relative {activeTab ===
 						tab
-							? 'text-slate-900'
-							: 'text-slate-400 hover:text-slate-600'}"
+							? 'text-[#083358]'
+							: 'text-[#8D9FB2] hover:text-[#083358]/70'}"
 						onclick={() => (activeTab = tab)}
 					>
 						{tab}

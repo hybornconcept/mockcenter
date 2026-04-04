@@ -33,7 +33,12 @@
 			icon: Library,
 			active: "/questions",
 		},
-		{ href: "#", label: "Start Practice", icon: Play },
+		{
+			href: "/start_practice",
+			label: "Start Practice",
+			icon: Play,
+			active: "/start_practice",
+		},
 		{ href: "#", label: "Mock Exam", icon: CircleDot, badge: "New" },
 	];
 
@@ -49,7 +54,7 @@
 	];
 
 	const earnLinks = [
-		{ href: "#", label: "Refer & Earn", icon: PieChart },
+		{ href: "/referrals", label: "Refer & Earn", icon: PieChart },
 		{ href: "#", label: "Bookmarks", icon: Bookmark },
 		{ href: "#", label: "Notifications", icon: Bell, badgeCount: 3 },
 	];
@@ -60,7 +65,7 @@
 >
 	<!-- Sidebar -->
 	<aside
-		class="bg-white border-r border-gray-100 flex flex-col shrink-0 h-screen sticky top-0 z-30 overflow-y-auto no-scrollbar pb-8 transition-all duration-300 shadow-[4px_0_24px_rgba(0,0,0,0.02)] {isExpanded
+		class="bg-white border-r border-gray-100 flex flex-col shrink-0 h-screen z-30 pb-8 transition-all duration-300 shadow-[4px_0_24px_rgba(0,0,0,0.02)] {isExpanded
 			? 'w-[230px]'
 			: 'w-[80px]'}"
 	>
@@ -280,7 +285,7 @@
 					{:else if $page.url.pathname === "/analytics"}
 						Analytics
 					{:else}
-						Good morning, Chukwuemeka
+						<span class="font-light italic text-slate-400">Good morning,</span> Chukwuemeka
 					{/if}
 				</h2>
 				<div
