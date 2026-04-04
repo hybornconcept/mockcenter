@@ -28,15 +28,13 @@
 	import { slide, fly } from "svelte/transition";
 
 	let { data } = $props();
-	const {
-		stats,
-		history,
-		summaryStats,
-		leaderboard,
-		referralSteps,
-		referralLink,
-		code,
-	} = data;
+	const stats = $derived(data.stats);
+	const history = $derived(data.history);
+	const summaryStats = $derived(data.summaryStats);
+	const leaderboard = $derived(data.leaderboard);
+	const referralSteps = $derived(data.referralSteps);
+	const referralLink = $derived(data.referralLink);
+	const code = $derived(data.code);
 
 	let showTiers = $state(false);
 	let copiedCode = $state(false);

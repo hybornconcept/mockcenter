@@ -466,6 +466,7 @@
 					<!-- Transparent pie-slice overlays — one per subject, reliable hit detection -->
 					{#each data.radarData as _, i}
 						<path
+							role="presentation"
 							d={rSlice(i, data.radarData.length)}
 							fill="transparent"
 							onmouseenter={(e) => onREnter(e, i)}
