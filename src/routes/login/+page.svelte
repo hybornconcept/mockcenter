@@ -12,7 +12,71 @@
 <div
 	class="min-h-screen bg-white flex font-sans text-slate-900 overflow-hidden"
 >
-	<!-- Left Side: Login Form -->
+	<!-- Left Side: Dropping Images -->
+	<div
+		class="hidden lg:flex w-[60%] relative items-start justify-center overflow-hidden"
+	>
+		<!-- Decorative Background -->
+		<div class="absolute inset-0">
+			<div
+				class="absolute inset-0 opacity-[0.03] bg-[radial-gradient(#4b5563_1px,transparent_1px)] bg-size-[16px_16px]"
+			></div>
+		</div>
+
+		<div
+			class="w-full h-full max-w-4xl relative flex justify-center gap-6 px-10"
+		>
+			<!-- Image 1 -->
+			<div
+				class="w-[91%] rounded-b-full overflow-hidden relative shadow-xl shadow-indigo-900/10 transition-all duration-700 ease-in-out hover:scale-[1.1] hover:z-20 origin-top cursor-pointer group"
+				style="height: 65vh;"
+				in:fly={{ y: -800, duration: 1000, delay: 0, easing: cubicOut }}
+			>
+				<img
+					src="https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=800&q=80"
+					alt="Student reading"
+					class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+				/>
+				<div
+					class="absolute inset-0 bg-indigo-900/40 transition-opacity duration-700 group-hover:opacity-60"
+				></div>
+			</div>
+
+			<!-- Image 2 (Longest) -->
+			<div
+				class="w-[91%] rounded-b-full overflow-hidden relative shadow-xl shadow-indigo-900/10 transition-all duration-700 ease-in-out hover:scale-[1.1] hover:z-20 origin-top cursor-pointer group"
+				style="height: 85vh;"
+				in:fly={{ y: -1000, duration: 1200, delay: 100, easing: cubicOut }}
+			>
+				<img
+					src="https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=800&q=80"
+					alt="Students collaborating"
+					class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+				/>
+				<div
+					class="absolute inset-0 bg-orange-900/40 transition-opacity duration-700 group-hover:opacity-60"
+				></div>
+			</div>
+
+			<!-- Image 3 -->
+			<div
+				class="w-[91%] rounded-b-full overflow-hidden relative shadow-xl shadow-indigo-900/10 transition-all duration-700 ease-in-out hover:scale-[1.1] hover:z-20 origin-top cursor-pointer group"
+				style="height: 55vh;"
+				in:fly={{ y: -600, duration: 1100, delay: 200, easing: cubicOut }}
+			>
+				<img
+					src="https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=800&q=80"
+					alt="Student portrait"
+					class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+				/>
+				<div
+					class="absolute inset-0 bg-teal-900/40 transition-opacity duration-700 group-hover:opacity-60"
+				></div>
+			</div>
+		</div>
+	</div>
+
+	<!-- Right Side: Login Form -->
 	<div
 		class="w-full lg:w-[40%] flex items-center justify-center p-8 lg:p-12 relative z-10"
 	>
@@ -27,8 +91,9 @@
 					class="w-10 h-10 object-contain"
 				/>
 				<span
-					class="font-extrabold text-lg tracking-tight text-purple-900"
-					style="font-family: 'Kodchasan', sans-serif;">Mockcenter</span
+					class="font-extrabold text-lg tracking-tight text-brand"
+					style="font-family: 'Kodchasan', sans-serif;"
+					>Mockcenter</span
 				>
 			</div>
 
@@ -50,7 +115,7 @@
 						type="email"
 						id="email"
 						placeholder="Email"
-						class="h-11 bg-white border-slate-200 focus-visible:ring-indigo-500 focus-visible:border-indigo-500 placeholder:text-slate-300 placeholder:font-light"
+						class="h-11 bg-white border-slate-200 focus-visible:ring-brand focus-visible:border-brand placeholder:text-slate-300 placeholder:font-light"
 					/>
 				</div>
 
@@ -63,7 +128,7 @@
 							type={showPassword ? "text" : "password"}
 							id="password"
 							placeholder="Password"
-							class="h-11 bg-white border-slate-200 focus-visible:ring-indigo-500 focus-visible:border-indigo-500 pr-10 placeholder:text-slate-300 placeholder:font-light"
+							class="h-11 bg-white border-slate-200 focus-visible:ring-brand focus-visible:border-brand pr-10 placeholder:text-slate-300 placeholder:font-light"
 						/>
 						<button
 							type="button"
@@ -82,7 +147,7 @@
 				<div class="flex justify-end">
 					<button
 						type="button"
-						class="text-xs font-bold text-red-400 hover:text-red-500 transition-colors"
+						class="text-xs font-bold text-brand hover:text-brand-dark transition-colors"
 					>
 						Forgot Password?
 					</button>
@@ -90,7 +155,7 @@
 
 				<Button
 					type="submit"
-					class="w-full h-11 bg-[#EF4444] hover:bg-[#DC2626] text-white font-bold text-sm shadow-sm"
+					class="w-full h-11 bg-brand hover:bg-brand-dark text-white font-bold text-sm shadow-sm"
 				>
 					Login
 				</Button>
@@ -101,7 +166,7 @@
 					Don't have an account?
 					<a
 						href="/register"
-						class="font-bold text-slate-900 hover:text-indigo-600 transition-colors"
+						class="font-bold text-brand hover:text-brand-dark transition-colors"
 						>Sign up</a
 					>
 				</p>
@@ -109,67 +174,4 @@
 		</div>
 	</div>
 
-	<!-- Right Side: Dropping Images -->
-	<div
-		class="hidden lg:flex w-[60%] relative items-start justify-center overflow-hidden"
-	>
-		<!-- Decorative Background -->
-		<div class="absolute inset-0">
-			<div
-				class="absolute inset-0 opacity-[0.03] bg-[radial-gradient(#4b5563_1px,transparent_1px)] bg-size-[16px_16px]"
-			></div>
-		</div>
-
-		<div
-			class="w-full h-full max-w-2xl relative flex justify-center gap-6 px-10"
-		>
-			<!-- Image 1 -->
-			<div
-				class="w-[70%] rounded-b-full overflow-hidden relative shadow-xl shadow-indigo-900/10 transition-all duration-700 ease-in-out hover:scale-[1.1] hover:z-20 origin-top cursor-pointer group"
-				style="height: 65vh;"
-				in:fly={{ y: -800, duration: 1000, delay: 0, easing: cubicOut }}
-			>
-				<img
-					src="https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=800&q=80"
-					alt="Student reading"
-					class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-				/>
-				<div
-					class="absolute inset-0 bg-indigo-900/40 transition-opacity duration-700 group-hover:opacity-60"
-				></div>
-			</div>
-
-			<!-- Image 2 (Longest) -->
-			<div
-				class="w-[70%] rounded-b-full overflow-hidden relative shadow-xl shadow-indigo-900/10 transition-all duration-700 ease-in-out hover:scale-[1.1] hover:z-20 origin-top cursor-pointer group"
-				style="height: 85vh;"
-				in:fly={{ y: -1000, duration: 1200, delay: 100, easing: cubicOut }}
-			>
-				<img
-					src="https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=800&q=80"
-					alt="Students collaborating"
-					class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-				/>
-				<div
-					class="absolute inset-0 bg-orange-900/40 transition-opacity duration-700 group-hover:opacity-60"
-				></div>
-			</div>
-
-			<!-- Image 3 -->
-			<div
-				class="w-[70%] rounded-b-full overflow-hidden relative shadow-xl shadow-indigo-900/10 transition-all duration-700 ease-in-out hover:scale-[1.1] hover:z-20 origin-top cursor-pointer group"
-				style="height: 55vh;"
-				in:fly={{ y: -600, duration: 1100, delay: 200, easing: cubicOut }}
-			>
-				<img
-					src="https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=800&q=80"
-					alt="Student portrait"
-					class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-				/>
-				<div
-					class="absolute inset-0 bg-teal-900/40 transition-opacity duration-700 group-hover:opacity-60"
-				></div>
-			</div>
-		</div>
-	</div>
 </div>

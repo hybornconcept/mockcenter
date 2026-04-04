@@ -125,8 +125,9 @@
 					class="w-10 h-10 object-contain"
 				/>
 				<span
-					class="font-extrabold text-lg tracking-tight text-purple-900"
-					style="font-family: 'Kodchasan', sans-serif;">Mockcenter</span
+					class="font-extrabold text-lg tracking-tight text-brand"
+					style="font-family: 'Kodchasan', sans-serif;"
+					>Mockcenter</span
 				>
 			</div>
 
@@ -151,7 +152,7 @@
 							id="firstName"
 							bind:value={firstName}
 							placeholder="First Name"
-							class="h-11 bg-white border-slate-300 focus-visible:ring-teal-500 focus-visible:border-teal-500 rounded-lg placeholder:text-slate-300"
+							class="h-11 bg-white border-slate-300 focus-visible:ring-brand focus-visible:border-brand rounded-lg placeholder:text-slate-300"
 						/>
 						{#if submitted && !firstName}
 							<p class="text-[10px] font-bold text-red-500 pl-1">
@@ -169,7 +170,7 @@
 							id="lastName"
 							bind:value={lastName}
 							placeholder="Last Name"
-							class="h-11 bg-white border-slate-300 focus-visible:ring-teal-500 focus-visible:border-teal-500 rounded-lg placeholder:text-slate-300"
+							class="h-11 bg-white border-slate-300 focus-visible:ring-brand focus-visible:border-brand rounded-lg placeholder:text-slate-300"
 						/>
 					</div>
 				</div>
@@ -186,7 +187,7 @@
 							id="middleName"
 							bind:value={middleName}
 							placeholder="Middle Name"
-							class="h-11 bg-white border-slate-300 focus-visible:ring-teal-500 focus-visible:border-teal-500 rounded-lg placeholder:text-slate-300"
+							class="h-11 bg-white border-slate-300 focus-visible:ring-brand focus-visible:border-brand rounded-lg placeholder:text-slate-300"
 						/>
 					</div>
 					<div class="space-y-1">
@@ -212,7 +213,7 @@
 								id="phoneNumber"
 								bind:value={phoneNumber}
 								placeholder="Phone Number"
-								class="h-11 pl-24 bg-white border-slate-300 focus-visible:ring-teal-500 focus-visible:border-teal-500 rounded-lg placeholder:text-slate-300"
+								class="h-11 pl-24 bg-white border-slate-300 focus-visible:ring-brand focus-visible:border-brand rounded-lg placeholder:text-slate-300"
 							/>
 						</div>
 					</div>
@@ -228,7 +229,7 @@
 						id="email"
 						bind:value={email}
 						placeholder="Email"
-						class="h-11 bg-white border-slate-300 focus-visible:ring-teal-500 focus-visible:border-teal-500 rounded-lg placeholder:text-slate-300"
+						class="h-11 bg-white border-slate-300 focus-visible:ring-brand focus-visible:border-brand rounded-lg placeholder:text-slate-300"
 					/>
 					{#if submitted && !email}
 						<p class="text-[10px] font-bold text-red-500 pl-1">
@@ -248,7 +249,7 @@
 							id="password"
 							bind:value={password}
 							placeholder="Password"
-							class="h-11 bg-white border-slate-300 focus-visible:ring-teal-500 focus-visible:border-teal-500 pr-10 rounded-lg placeholder:text-slate-300"
+							class="h-11 bg-white border-slate-300 focus-visible:ring-brand focus-visible:border-brand pr-10 rounded-lg placeholder:text-slate-300"
 						/>
 						<button
 							type="button"
@@ -277,7 +278,7 @@
 							id="confirmPassword"
 							bind:value={confirmPassword}
 							placeholder="Confirm Password"
-							class="h-11 bg-white border-slate-300 focus-visible:ring-teal-500 focus-visible:border-teal-500 pr-10 rounded-lg placeholder:text-slate-300"
+							class="h-11 bg-white border-slate-300 focus-visible:ring-brand focus-visible:border-brand pr-10 rounded-lg placeholder:text-slate-300"
 						/>
 						<button
 							type="button"
@@ -341,7 +342,7 @@
 				<!-- Submit Button -->
 				<Button
 					type="submit"
-					class="w-full h-12 bg-[#D1D1D1] text-white font-bold text-base shadow-none hover:bg-slate-300 transition-colors rounded-lg mt-2"
+					class="w-full h-12 bg-brand text-white font-bold text-base shadow-none hover:bg-brand-dark transition-colors rounded-lg mt-2"
 				>
 					Continue
 				</Button>
