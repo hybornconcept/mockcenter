@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Header from "$lib/components/pages/Header.svelte";
 	import Hero from "$lib/components/pages/Hero.svelte";
 	import Exams from "$lib/components/pages/Exams.svelte";
 	import Features from "$lib/components/pages/Features.svelte";
@@ -13,6 +14,7 @@
 	import Footer from "$lib/components/pages/Footer.svelte";
 </script>
 
+<Header />
 <Hero />
 <Exams />
 <Features />

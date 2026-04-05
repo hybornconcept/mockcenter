@@ -71,7 +71,7 @@
 	}
 </script>
 
-<section class="w-full pt-4 pb-16 px-4 font-sans antialiased text-[#111827]">
+<section id="exams" class="w-full pt-4 pb-16 px-4 font-sans antialiased text-[#111827]">
 	{#snippet statBadge(icon: any, text: string)}
 		{@const Icon = icon}
 		<div

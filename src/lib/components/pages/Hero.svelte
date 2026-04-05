@@ -1,7 +1,5 @@
 <script lang="ts">
 	import { Card, CardContent } from "$lib/components/ui/card";
-	import { tweened } from "svelte/motion";
-	import { cubicInOut } from "svelte/easing";
 	import {
 		Users,
 		Star,
@@ -13,25 +11,12 @@
 	let isSecondCardHovered = $state(false);
 	let isThirdCardHovered = $state(false);
 
-	const firstCardWidth = tweened(310, { duration: 350, easing: cubicInOut });
-	const secondCardWidth = tweened(150, { duration: 350, easing: cubicInOut });
-	const thirdCardWidth = tweened(150, { duration: 350, easing: cubicInOut });
+	$derived: {
+		// derived widths kept as reactive computations for clarity
+	}
 
-	$effect(() => {
-		if (isSecondCardHovered) {
-			firstCardWidth.set(150);
-			secondCardWidth.set(310);
-			thirdCardWidth.set(150);
-		} else if (isThirdCardHovered) {
-			firstCardWidth.set(150);
-			secondCardWidth.set(150);
-			thirdCardWidth.set(310);
-		} else {
-			firstCardWidth.set(310);
-			secondCardWidth.set(150);
-			thirdCardWidth.set(150);
-		}
-	});
+	const BASE_W = 150;
+	const EXPANDED_W = 310;
 </script>
 
 <svelte:head>
@@ -52,64 +37,9 @@
 >
 	<!-- HERO SECTION - Edge-to-Edge -->
 	<section
-		class="relative w-full bg-linear-to-b from-brand/35 via-brand-muted/20 to-background px-6 md:px-12 lg:px-20 pt-6"
+		class="relative w-full bg-linear-to-b from-brand/35 via-brand-muted/20 to-background pt-22 md:pt-22"
 	>
-		<div class="max-w-7xl mx-auto">
-			<!-- HEADER -->
-			<header class="flex flex-wrap justify-between items-center pb-6">
-				<!-- Logo -->
-				<div
-					class="flex items-center gap-3 font-bold text-gray-900 text-[0.95rem]"
-				>
-					<div class="flex gap-1 rotate-45">
-						<div
-							class="w-1.5 h-3 bg-black rounded-[2px] -translate-y-0.5"
-						></div>
-						<div class="w-1.5 h-3 bg-black rounded-[2px] translate-y-0.5"></div>
-					</div>
-					<span>/ Sales@reelers.io</span>
-				</div>
-
-				<!-- Desktop Nav -->
-				<nav
-					class="hidden md:flex items-center gap-6 text-[0.85rem] font-bold text-gray-900"
-				>
-					<a href="#exams" class="hover:text-gray-500 transition-colors"
-						>Exams</a
-					>
-					<span class="text-xl text-gray-400 mt-[-8px]">.</span>
-					<a href="#features" class="hover:text-gray-500 transition-colors"
-						>Features</a
-					>
-					<span class="text-xl text-gray-400 mt-[-8px]">.</span>
-					<a href="#refer" class="hover:text-gray-500 transition-colors"
-						>Refer & Earn</a
-					>
-					<span class="text-xl text-gray-400 mt-[-8px]">.</span>
-					<a href="#pricing" class="hover:text-gray-500 transition-colors"
-						>Pricing</a
-					>
-					<span class="text-xl text-gray-400 mt-[-8px]">.</span>
-					<a href="#faq" class="hover:text-gray-500 transition-colors">FAQ</a>
-				</nav>
-
-				<!-- Auth -->
-				<div class="flex flex-wrap items-center gap-5">
-					<button
-						class="font-bold text-gray-900 text-[0.9rem] hover:text-gray-600 transition-colors"
-					>
-						Log in
-					</button>
-					<button
-						class="border-[1.5px] border-black bg-transparent px-5 py-2.5 rounded-full font-bold text-gray-900 text-[0.85rem] flex items-center gap-1.5 hover:bg-black/5 transition-colors"
-					>
-						Get it Now <span class="text-gray-500 font-medium ml-1"
-							>— It's Free</span
-						>
-					</button>
-				</div>
-			</header>
-
+		<div class="max-w-[1350px] mx-auto w-full px-6 md:px-10 lg:px-16">
 			<!-- MAIN HERO CONTENT -->
 			<main
 				class="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center mt-4 lg:mt-8"
@@ -188,13 +118,14 @@
 					<div
 						class="flex flex-wrap justify-center lg:justify-start items-center gap-4 mt-1.5"
 					>
-						<button
+						<a
+							href="/dashboard"
 							class="bg-brand-dark text-white px-6 py-3 rounded-full font-bold text-[0.9rem] hover:bg-brand hover:-translate-y-0.5 hover:shadow-lg hover:shadow-brand/20 transition-all duration-200"
 						>
-							Download <span class="text-white/70 font-medium ml-1"
+							Get Started <span class="text-white/70 font-medium ml-1"
 								>— It's Free</span
 							>
-						</button>
+						</a>
 						<a
 							href="#pricing"
 							class="text-brand-dark font-bold text-[0.95rem] flex items-center gap-1 hover:text-brand transition-colors group"
@@ -214,13 +145,25 @@
 					<Card
 						id="first-card"
 						class="relative z-10 h-[418px] lg:h-[462px] shrink-0 overflow-hidden rounded-2xl shadow-xl border-brand/30"
-						style="width: {$firstCardWidth}px;"
+						style="
+							width: {isSecondCardHovered || isThirdCardHovered ? BASE_W : EXPANDED_W}px;
+							transition: width 320ms cubic-bezier(0.4, 0, 0.2, 1);
+							will-change: width;
+						"
 					>
 						<CardContent class="h-full w-full p-0">
 							<img
 								src="happy-student-girl.jpg"
 								alt="Writing Course"
 								class="absolute inset-0 h-full w-full object-cover"
+								style="
+									transform: scale({isSecondCardHovered || isThirdCardHovered ? 1.04 : 1});
+									object-position: {isSecondCardHovered || isThirdCardHovered
+									? '40% center'
+									: 'center'};
+									transition: transform 320ms cubic-bezier(0.4, 0, 0.2, 1), object-position 320ms cubic-bezier(0.4, 0, 0.2, 1);
+									will-change: transform;
+								"
 							/>
 							<!-- Brand overlay -->
 							<div class="pointer-events-none absolute inset-0">
@@ -247,7 +190,11 @@
 					<Card
 						id="second-card"
 						class="relative z-10 h-[418px] lg:h-[462px] shrink-0 overflow-hidden rounded-2xl shadow-xl border-brand/30 cursor-pointer"
-						style="width: {$secondCardWidth}px;"
+						style="
+							width: {isSecondCardHovered ? EXPANDED_W : BASE_W}px;
+							transition: width 320ms cubic-bezier(0.4, 0, 0.2, 1);
+							will-change: width;
+						"
 						onmouseenter={() => (isSecondCardHovered = true)}
 						onmouseleave={() => (isSecondCardHovered = false)}
 					>
@@ -256,6 +203,12 @@
 								src="second.jpg"
 								alt="Writing"
 								class="absolute inset-0 h-full w-full object-cover"
+								style="
+									transform: scale({isSecondCardHovered ? 1 : 1.04});
+									object-position: {isSecondCardHovered ? 'center' : '60% center'};
+									transition: transform 320ms cubic-bezier(0.4, 0, 0.2, 1), object-position 320ms cubic-bezier(0.4, 0, 0.2, 1);
+									will-change: transform;
+								"
 							/>
 							<!-- Brand overlay -->
 							<div class="pointer-events-none absolute inset-0">
@@ -264,8 +217,10 @@
 								></div>
 							</div>
 							<div
-								class="absolute bottom-8 left-1/2 origin-bottom-left -translate-x-1/2 -rotate-90 transition-opacity duration-200"
-								style:opacity={!isSecondCardHovered ? 1 : 0}
+								class="absolute bottom-8 left-1/2 origin-bottom-left -translate-x-1/2 -rotate-90"
+								style="opacity: {!isSecondCardHovered
+									? 1
+									: 0}; transition: opacity 220ms cubic-bezier(0.4, 0, 0.2, 1);"
 							>
 								<span
 									class="text-lg font-semibold tracking-wide text-brand-muted drop-shadow whitespace-nowrap border-none"
@@ -273,8 +228,12 @@
 								>
 							</div>
 							<div
-								class="absolute bottom-6 left-6 transition-opacity duration-200 min-w-[200px]"
-								style:opacity={isSecondCardHovered ? 1 : 0}
+								class="absolute bottom-6 left-6 min-w-[200px]"
+								style="opacity: {isSecondCardHovered
+									? 1
+									: 0}; transition: opacity 220ms cubic-bezier(0.4, 0, 0.2, 1) {isSecondCardHovered
+									? '80ms'
+									: '0ms'};"
 							>
 								<div
 									class="text-xl font-semibold text-white drop-shadow border-none"
@@ -299,7 +258,11 @@
 					<Card
 						id="third-card"
 						class="relative h-[418px] lg:h-[462px] shrink-0 overflow-hidden rounded-2xl shadow-xl border-brand/30 cursor-pointer"
-						style="width: {$thirdCardWidth}px;"
+						style="
+							width: {isThirdCardHovered ? EXPANDED_W : BASE_W}px;
+							transition: width 320ms cubic-bezier(0.4, 0, 0.2, 1);
+							will-change: width;
+						"
 						onmouseenter={() => (isThirdCardHovered = true)}
 						onmouseleave={() => (isThirdCardHovered = false)}
 					>
@@ -308,6 +271,12 @@
 								src="third.jpg"
 								alt="Business"
 								class="absolute inset-0 h-full w-full object-cover"
+								style="
+									transform: scale({isThirdCardHovered ? 1 : 1.04});
+									object-position: {isThirdCardHovered ? 'center' : '60% center'};
+									transition: transform 320ms cubic-bezier(0.4, 0, 0.2, 1), object-position 320ms cubic-bezier(0.4, 0, 0.2, 1);
+									will-change: transform;
+								"
 							/>
 							<!-- Brand overlay -->
 							<div class="pointer-events-none absolute inset-0">
@@ -316,8 +285,10 @@
 								></div>
 							</div>
 							<div
-								class="absolute bottom-8 left-1/2 origin-bottom-left -translate-x-1/2 -rotate-90 transition-opacity duration-200"
-								style:opacity={!isThirdCardHovered ? 1 : 0}
+								class="absolute bottom-8 left-1/2 origin-bottom-left -translate-x-1/2 -rotate-90"
+								style="opacity: {!isThirdCardHovered
+									? 1
+									: 0}; transition: opacity 220ms cubic-bezier(0.4, 0, 0.2, 1);"
 							>
 								<span
 									class="text-lg font-semibold tracking-wide text-brand-muted drop-shadow whitespace-nowrap border-none"
@@ -325,8 +296,12 @@
 								>
 							</div>
 							<div
-								class="absolute bottom-6 left-6 transition-opacity duration-200 min-w-[200px]"
-								style:opacity={isThirdCardHovered ? 1 : 0}
+								class="absolute bottom-6 left-6 min-w-[200px]"
+								style="opacity: {isThirdCardHovered
+									? 1
+									: 0}; transition: opacity 220ms cubic-bezier(0.4, 0, 0.2, 1) {isThirdCardHovered
+									? '80ms'
+									: '0ms'};"
 							>
 								<div
 									class="text-xl font-semibold text-white drop-shadow border-none"

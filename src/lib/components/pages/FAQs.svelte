@@ -42,7 +42,7 @@
 	];
 </script>
 
-<section class="w-full py-20 bg-white font-sans overflow-hidden antialiased">
+<section id="faq" class="w-full py-20 bg-white font-sans overflow-hidden antialiased">
 	<div class="max-w-3xl mx-auto px-6 lg:px-8">
 		<!-- Header Section -->
 		<div class="text-center mb-12">

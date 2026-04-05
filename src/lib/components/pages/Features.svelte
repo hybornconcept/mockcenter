@@ -53,7 +53,7 @@
 	let activeId = $state("cbt");
 </script>
 
-<section class="w-full py-16 font-sans overflow-hidden bg-brand/5">
+<section id="features" class="w-full py-16 font-sans overflow-hidden bg-brand/5">
 	<div class="max-w-7xl mx-auto px-6 lg:px-12">
 		<div class="grid grid-cols-1 lg:grid-cols-2 gap-16 items-start">
 			<!-- LEFT COLUMN: Content & Accordion -->

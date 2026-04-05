@@ -46,7 +46,7 @@
 	];
 </script>
 
-<section class="w-full py-12 bg-brand/5 font-sans overflow-hidden">
+<section id="refer" class="w-full py-12 bg-brand/5 font-sans overflow-hidden">
 	<div class="max-w-6xl mx-auto px-6 lg:px-12">
 		<!-- Main Dark Card -->
 		<div

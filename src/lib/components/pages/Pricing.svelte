@@ -62,7 +62,7 @@
 	let isBulk = $state(true);
 </script>
 
-<section class="w-full py-10 bg-brand/5 font-sans overflow-hidden antialiased">
+<section id="pricing" class="w-full py-10 bg-brand/5 font-sans overflow-hidden antialiased">
 	<div class="max-w-[1060px] mx-auto px-4 lg:px-12">
 		<!-- Restored Header -->
 		<div class="text-center mb-6">
