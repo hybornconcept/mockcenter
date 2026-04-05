@@ -1,10 +1,10 @@
-import type { PageServerLoad } from './$types';
+import type { PageServerLoad } from '../../$types';
 
 export const load: PageServerLoad = async () => {
 	// Generate 20 questions (reduced from 50)
 	const questions: Question[] = Array.from({ length: 20 }, (_, i) => {
 		const id = i + 1;
-		let section = "General"; 
+		let section = "General";
 
 		// Default State declarations
 		let status: QuestionStatus = "not-visited";

@@ -56,11 +56,13 @@
 							<Users class="w-3.5 h-3.5" strokeWidth={2.5} />
 						</div>
 						<div class="text-[0.8rem] leading-tight text-left text-brand-dark">
-							<span class="font-black tracking-tight">20M+ User</span><br />
+							<span class="font-black tracking-tight">100k+ Users</span><br />
 							<span class="text-brand-dark/80 font-medium"
-								>Read Our <u
-									class="font-bold decoration-2 underline-offset-1 cursor-pointer hover:text-brand transition-colors"
-									>Success Stories</u
+								>Read Our <a href="#testimonials">
+									<u
+										class="font-bold decoration-2 underline-offset-1 cursor-pointer hover:text-brand transition-colors"
+										>Success Stories</u
+									></a
 								></span
 							>
 						</div>

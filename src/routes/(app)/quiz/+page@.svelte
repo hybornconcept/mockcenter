@@ -70,7 +70,7 @@
 
 	function reportIssue(questionId: number) {
 		console.log("Report issue for question:", questionId);
-	}
+	}../../$types.js
 
 	let { data } = $props();
 
