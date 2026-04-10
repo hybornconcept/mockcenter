@@ -1,0 +1,35 @@
+name = "examenow-api"
+main = "src/index.ts"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+
+[dev]
+port = 8787
+local_protocol = "http"
+ip = "127.0.0.1"
+
+[vars]
+APP_NAME = "ExamNow"
+API_VERSION = "v1"
+NODE_ENV = "development"
+
+
+
+[[hyperdrive]]
+binding = "HYPERDRIVE"
+id = "3491fff157c24aadacd1a0876628fb1b"
+local_connection_string = "postgresql://postgres:legacy@localhost:5432/mockcenter"
+
+[env.production]
+name = "examenow-api-production"
+
+[env.production.vars]
+NODE_ENV = "production"
+APP_URL = "https://examenow.ng"
+
+[env.staging]
+name = "examenow-api-staging"
+
+[env.staging.vars]
+NODE_ENV = "staging"
+APP_URL = "https://staging.examenow.ng"

@@ -4,6 +4,7 @@
 **Goal:** Stabilize the core practice loop and enable monetization via Paystack.
 
 ### Phase 1: Authentication & Onboarding Polish
+**Goal:** Resolve all authentication redirection loops, inconsistent email verification states, and onboarding friction for both email and Google OAuth users.
 - [ ] Implement robust email verification flow (server-side check + UI)
 - [ ] Fix OAuth onboarding redirection loops
 - [ ] Ensure emailVerified logic is consistent across database
