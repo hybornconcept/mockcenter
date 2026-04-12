@@ -3,6 +3,7 @@ import { sveltekit } from '@sveltejs/kit/vite';
 import { imagetools } from 'vite-imagetools';
 import { defineConfig } from 'vite';
 
+// Force Vite restart to clear module timeout cache
 export default defineConfig({ 
 	plugins: [tailwindcss(), sveltekit(), imagetools()],
 	server: {
@@ -12,6 +13,11 @@ export default defineConfig({
 				changeOrigin: true,
 				secure: false,
 				cookieDomainRewrite: 'localhost',
+			},
+			'/images': {
+				target: 'http://127.0.0.1:8787',
+				changeOrigin: true,
+				secure: false,
 			}
 		}
 	},

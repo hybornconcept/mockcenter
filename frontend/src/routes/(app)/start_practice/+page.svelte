@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { page } from "$app/stores";
+	import { goto } from "$app/navigation";
 	import * as Card from "$lib/components/ui/card/index.js";
 	import { Badge } from "$lib/components/ui/badge/index.js";
 	import { Slider } from "$lib/components/ui/slider/index.js";
@@ -21,7 +23,7 @@
 		Target,
 		GraduationCap,
 		Book,
-	} from "@lucide/svelte";
+	} from "lucide-svelte";
 	import { Switch } from "$lib/components/ui/switch/index.js";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import { Input } from "$lib/components/ui/input/index.js";
@@ -36,7 +38,7 @@
 
 	// CBT Slider Arrays
 	let numQuestionsArr = $state([20]);
-	let timePerQuestionArr = $state([20]);
+	let durationArr = $state([20]);
 	let passMarkArr = $state([40]);
 	let questionsPerPageArr = $state([5]);
 
@@ -44,10 +46,10 @@
 	let numQuestions = $derived(
 		Array.isArray(numQuestionsArr) ? numQuestionsArr[0] : numQuestionsArr,
 	);
-	let timePerQuestion = $derived(
-		Array.isArray(timePerQuestionArr)
-			? timePerQuestionArr[0]
-			: timePerQuestionArr,
+	let duration = $derived(
+		Array.isArray(durationArr)
+			? durationArr[0]
+			: durationArr,
 	);
 	let passMark = $derived(
 		Array.isArray(passMarkArr) ? passMarkArr[0] : passMarkArr,
@@ -57,6 +59,8 @@
 			? questionsPerPageArr[0]
 			: questionsPerPageArr,
 	);
+	
+	let subjectName = $derived($page.url.searchParams.get('subjectName') || "Biology 🧬");
 
 	let practiceMode = $state("ai"); // timed, practice, ai, speed
 
@@ -86,17 +90,60 @@
 			selectedYears = [...selectedYears, year];
 		}
 	}
+
+	let loading = $state(false);
+	
+	async function startSession() {
+		const examId = $page.url.searchParams.get('examId') || "00000000-0000-0000-0000-000000000000";
+		const subjectId = $page.url.searchParams.get('subjectId') || "00000000-0000-0000-0000-000000000000";
+
+		loading = true;
+		try {
+			const res = await fetch('/api/practice/start', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					examId,
+					subjectIds: [subjectId],
+					totalQuestions: numQuestions
+				})
+			});
+			const result = await res.json();
+			if (result.success && result.data?.session?.id) {
+				const query = new URLSearchParams({
+					mode: practiceMode,
+					duration: duration.toString(),
+					questionsPerPage: questionsPerPage.toString(),
+					passMark: passMark.toString(),
+					shuffle: shuffle.toString(),
+					redemption: redemption.toString(),
+					skip: skip.toString(),
+					subjectName: subjectName,
+					examType: selectedExamTypes.length > 0 ? selectedExamTypes[0].split(" / ")[0] : "",
+					year: selectedYears.length > 0 ? (selectedYears.length === 1 ? `${selectedYears[0]}` : `${Math.min(...selectedYears)} – ${Math.max(...selectedYears)}`) : ""
+				});
+				goto(`/quiz/${result.data.session.id}?${query.toString()}`);
+			} else {
+				alert(result.message || "Failed to start practice");
+			}
+		} catch (err) {
+			console.error(err);
+			alert("An error occurred while starting the practice.");
+		} finally {
+			loading = false;
+		}
+	}
 </script>
 
 {#snippet summaryRow(Icon: any, label: string, value: string)}
 	<div class="flex items-center gap-4 justify-between">
 		<div class="flex items-center gap-3.5 mb-2">
-			<Icon class="w-4 h-4 text-slate-400" />
+			<Icon class="w-4 h-4 text-brand/60" />
 			<span class="text-[12.5px] text-slate-500 font-semibold tracking-tight"
 				>{label}</span
 			>
 		</div>
-		<span class="text-[12.5px] font-bold text-slate-900 tracking-tight"
+		<span class="text-[12.5px] font-bold text-brand-dark tracking-tight"
 			>{value}</span
 		>
 	</div>
@@ -190,9 +237,7 @@
 	>
 		<div class="flex items-center gap-3">
 			<div
-				class="w-8 h-8 rounded-lg {id === 'skip'
-					? 'bg-amber-50 text-amber-500'
-					: 'bg-slate-50 text-slate-400'} flex items-center justify-center"
+				class="w-8 h-8 rounded-lg bg-slate-50 text-slate-400 flex items-center justify-center group-hover:bg-brand/10 group-hover:text-brand transition-colors"
 			>
 				<Icon class="w-4 h-4" />
 			</div>
@@ -331,7 +376,7 @@
 								<div
 									class="bg-brand/5 rounded-2xl p-5 divide-y space-y-4 divide-slate-200/50 border border-slate-100/50 shadow-sm"
 								>
-									{@render summaryRow(Book, "Subject", "Biology 🧬")}
+									{@render summaryRow(Book, "Subject", subjectName)}
 									{@render summaryRow(
 										GraduationCap,
 										"Exam type",
@@ -362,7 +407,7 @@
 									{@render summaryRow(
 										Timer,
 										"Duration",
-										`${timePerQuestion} min`,
+										`${duration} min`,
 									)}
 									{@render summaryRow(
 										practiceMode === "ai"
@@ -388,21 +433,21 @@
 									class="bg-brand/5 border border-brand/10 rounded-xl p-4 space-y-2.5 shadow-sm !mt-2"
 								>
 									<div class="flex items-center justify-between text-[12.5px]">
-										<span class="text-slate-600 font-bold">Questions</span>
-										<span class="text-slate-800 font-bold"
+										<span class="text-slate-500 font-bold">Questions</span>
+										<span class="text-brand-dark font-bold"
 											>{numQuestions} × 2 credits</span
 										>
 									</div>
 									<div class="flex items-center justify-between text-[12.5px]">
-										<span class="text-slate-600 font-bold">Your balance</span>
-										<span class="text-slate-800 font-bold">240 credits</span>
+										<span class="text-slate-500 font-bold">Your balance</span>
+										<span class="text-brand-dark font-bold">240 credits</span>
 									</div>
 									<hr class="border-brand/10 w-full my-2" />
 									<div class="flex items-center justify-between">
 										<span class="font-extrabold text-slate-900 text-[14px]"
 											>Total cost</span
 										>
-										<span class="font-extrabold text-brand-dark text-[15px]"
+										<span class="font-extrabold text-brand text-[15px]"
 											>{numQuestions * 2} credits</span
 										>
 									</div>
@@ -450,7 +495,7 @@
 			<div class="space-y-6">
 				<!-- Section 2: Select exam type -->
 				<Card.Root
-					class="bg-white rounded-2xl border-slate-100 p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] space-y-5"
+					class="bg-white rounded-2xl border-slate-100 p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] space-y-4"
 				>
 					<div class="flex items-center justify-between">
 						{@render sectionHeader(
@@ -480,7 +525,7 @@
 					</div>
 
 					<!-- Section 3: Choose year(s) -->
-					<div class="pt-5 border-t border-slate-100 space-y-5">
+					<div class="pt-4 border-t border-slate-100 space-y-4">
 						<div class="flex items-center justify-between">
 							{@render sectionHeader(
 								"2",
@@ -523,7 +568,7 @@
 
 				<!-- Section 4: Session settings (spans full width on medium screens) -->
 				<Card.Root
-					class="bg-white rounded-xl border-slate-200 p-5 shadow-sm space-y-6 xl:col-span-2"
+					class="bg-white rounded-xl border-slate-200 p-5 shadow-sm space-y-4 xl:col-span-2"
 				>
 					{@render sectionHeader(
 						"4",
@@ -531,7 +576,7 @@
 						"Configure your session parameters",
 					)}
 
-					<div class="space-y-4 px-1">
+					<div class="space-y-3 px-1">
 						{@render configSlider(
 							"numQuestions",
 							"Number of questions",
@@ -544,14 +589,14 @@
 						)}
 
 						{@render configSlider(
-							"timePerQuestion",
-							"Time per question",
+							"duration",
+							"Duration for test",
 							"(mins)",
-							timePerQuestionArr,
-							(v) => (timePerQuestionArr = v),
+							durationArr,
+							(v) => (durationArr = v),
 							0,
-							120,
-							`${timePerQuestion} min`,
+							180,
+							`${duration} min`,
 						)}
 
 						{@render configSlider(
@@ -577,16 +622,16 @@
 						)}
 					</div>
 
-					<div class="border-t border-slate-100 pt-5">
+					<div class="border-t border-slate-100 pt-3">
 						<h5
 							class="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3"
 						>
 							Fine-tuning
 						</h5>
 
-						<div class="grid grid-cols-1 gap-4">
+						<div class="grid grid-cols-1 gap-2">
 							<div
-								class="bg-slate-50/50 rounded-2xl border border-slate-100 p-4 space-y-4"
+								class="bg-slate-50/50 rounded-2xl border border-slate-100 p-3 space-y-3"
 							>
 								<div class="flex items-center justify-between">
 									<h6
@@ -597,7 +642,7 @@
 									<LayoutGrid class="w-3.5 h-3.5 text-slate-300" />
 								</div>
 
-								<div class="flex flex-col gap-2">
+								<div class="flex flex-col gap-1.5">
 									{@render tuningRow(
 										"shuffle",
 										"Shuffle questions",
@@ -618,14 +663,13 @@
 										Zap,
 										skip,
 										(v) => (skip = v),
-										"bg-amber-400",
 									)}
 								</div>
 							</div>
 						</div>
 					</div>
 
-					<div class="border-t border-slate-100 pt-5">
+					<div class="border-t border-slate-100 pt-3">
 						<h5
 							class="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3"
 						>
@@ -697,21 +741,27 @@
 	<!-- Sticky Global CTA -->
 	<div class="px-6 lg:px-4 pb-12 w-full mt-4">
 		<button
-			class="w-full bg-brand hover:bg-brand/90 text-white font-extrabold text-[16px] py-4 lg:py-5 rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg hover:shadow-xl active:scale-[0.99]"
+			onclick={startSession}
+			disabled={loading}
+			class="w-full bg-brand hover:bg-brand/90 text-white font-extrabold text-[16px] py-4 lg:py-5 rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg hover:shadow-xl active:scale-[0.99] disabled:opacity-75 disabled:cursor-wait"
 		>
-			<svg
-				xmlns="http://www.w3.org/2000/svg"
-				width="20"
-				height="20"
-				viewBox="0 0 24 24"
-				fill="none"
-				stroke="currentColor"
-				stroke-width="2.5"
-				stroke-linecap="round"
-				stroke-linejoin="round"
-				><polygon points="5 3 19 12 5 21 5 3"></polygon></svg
-			>
-			Start Practice Session
+			{#if loading}
+				Starting...
+			{:else}
+				<svg
+					xmlns="http://www.w3.org/2000/svg"
+					width="20"
+					height="20"
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="2.5"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					><polygon points="5 3 19 12 5 21 5 3"></polygon></svg
+				>
+				Start Practice Session
+			{/if}
 		</button>
 	</div>
 </div>

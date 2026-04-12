@@ -11,6 +11,8 @@
 	import { valibotClient } from "sveltekit-superforms/adapters";
 	import { loginSchema } from "$lib/schemas";
 
+	import { authClient } from "$lib/auth-client";
+
 	let { data } = $props();
 
 	const loginForm = superForm(() => data.form, {
@@ -20,9 +22,11 @@
 	const { form: formData, errors, enhance, delayed } = loginForm;
 	let showPassword = $state(false);
 
-	async function handleLogin(e: Event) {
-		e.preventDefault();
-		// Simulation for UI design
+	async function signInWithGoogle() {
+		await authClient.signIn.social({
+			provider: "google",
+			callbackURL: `${window.location.origin}/dashboard`
+		});
 	}
 </script>
 
@@ -119,15 +123,18 @@
 					<div class="flex-1 h-px bg-slate-100"></div>
 				</div>
 
-				<a
-					href="/login/google"
-					rel="external"
-					data-sveltekit-reload
-					class="w-full h-12 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-700 font-bold text-sm rounded-xl transition-all flex items-center justify-center gap-3"
+				<button
+					onclick={signInWithGoogle}
+					type="button"
+					class="w-full h-12 bg-white border border-brand/40 hover:bg-slate-50 text-slate-900 font-bold text-[15px] rounded-full transition-all flex items-center justify-center gap-3 cursor-pointer shadow-sm"
 				>
-					<img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" class="w-5 h-5" />
+					<img
+						src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
+						alt="Google"
+						class="w-5 h-5"
+					/>
 					Continue with Google
-				</a>
+				</button>
 
 				<p class="text-center text-xs text-slate-500">
 					Don't have an account?

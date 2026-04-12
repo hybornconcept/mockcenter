@@ -6,17 +6,39 @@ export class QuestionService {
   constructor(private db: Database) {}
 
   async getQuestionsForSession(subjectIds: string[], limit: number) {
-    return this.db
-      .select({
-        id: questions.id,
-        body: questions.body,
-        topic: questions.topic,
-        year: questions.year,
-      })
-      .from(questions)
-      .where(inArray(questions.subjectId, subjectIds))
-      .orderBy(sql`RANDOM()`)
-      .limit(limit);
+    const isMock = subjectIds.includes("00000000-0000-0000-0000-000000000000");
+    const whereClause = isMock ? undefined : inArray(questions.subjectId, subjectIds);
+    
+    const records = await this.db.query.questions.findMany({
+      where: whereClause,
+      with: {
+        options: {
+          columns: {
+            id: true,
+            label: true,
+            body: true
+          } // EXCLUDE isCorrect!
+        }
+      },
+      limit: limit,
+      orderBy: sql`${questions.createdAt} ASC`,
+    });
+    return records;
+  }
+
+  async getQuestionsByIds(ids: string[]) {
+    if (ids.length === 0) return [];
+    const records = await this.db.query.questions.findMany({
+      where: inArray(questions.id, ids),
+      with: {
+        options: {
+          columns: { id: true, label: true, body: true }
+        }
+      },
+    });
+    // Restore original session order
+    const map = new Map(records.map((r) => [r.id, r]));
+    return ids.map((id) => map.get(id)).filter(Boolean) as typeof records;
   }
 
   async getQuestionWithOptions(questionId: string) {

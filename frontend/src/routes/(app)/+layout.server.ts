@@ -11,7 +11,8 @@ export const load: LayoutServerLoad = async ({ fetch }) => {
   const json = await res.json();
   const user = json?.data;
 
-  const isVerified = user?.emailVerified === 'true' || user?.emailVerified === true;
+  // TEMPORARY: Bypass email verification until domain is configured for Resend
+  const isVerified = true; // user?.emailVerified === 'true' || user?.emailVerified === true;
 
   if (!isVerified) {
     throw redirect(302, '/verify-email');

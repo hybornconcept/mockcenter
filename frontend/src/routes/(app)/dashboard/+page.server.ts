@@ -39,11 +39,20 @@ export const load: PageServerLoad = async () => {
 		{ name: 'Femi L.', initials: 'FL', date: 'Mar 12, 2026', score: 50, theme: 'gray' }
 	];
 
-	const payments = [
-		{ id: 'PID - 331829', category: '6th Semester Tuition', date: '23 October 2024', status: 'On-Verification', statusColor: 'amber' },
-		{ id: 'PID - 331828', category: 'Internship Program 2025', date: '24 August 2024', status: 'Completed', statusColor: 'emerald' },
-		{ id: 'PID - 331827', category: '5th Semester Tuition', date: '20 May 2024', status: 'Completed', statusColor: 'emerald' },
-		{ id: 'PID - 331826', category: '4th Semester Tuition', date: '22 October 2023', status: 'Completed', statusColor: 'emerald' }
+	const recentActivity = [
+		{ id: 1, type: 'practice', activity: 'Biology practice', subject: 'WAEC 2022', score: '84%', credits: '-40 cr', time: '2h ago', timeColor: 'blue', icon: 'Play' },
+		{ id: 2, type: 'reward', activity: 'Referral reward — Chisom', subject: '—', score: '—', credits: '+50 cr', time: 'Today', timeColor: 'emerald', icon: 'Gift' },
+		{ id: 3, type: 'exam', activity: 'Mock exam completed', subject: 'JAMB Full', score: '67%', credits: '-120 cr', time: 'Yesterday', timeColor: 'amber', icon: 'Disc' },
+		{ id: 4, type: 'bookmark', activity: '3 questions bookmarked', subject: 'Chemistry', score: '—', credits: '—', time: 'Yesterday', timeColor: 'amber', icon: 'Bookmark' },
+		{ id: 5, type: 'achievement', activity: 'Achievement unlocked', subject: '—', score: '—', credits: '—', time: 'Mar 26', timeColor: 'slate', icon: 'Medal' }
+	];
+
+	const subjectPerformance = [
+		{ subject: 'Maths', userScore: 84, avgScore: 62 },
+		{ subject: 'English', userScore: 78, avgScore: 72 },
+		{ subject: 'Biology', userScore: 55, avgScore: 58 },
+		{ subject: 'Physics', userScore: 42, avgScore: 51 },
+		{ subject: 'Chemistry', userScore: 67, avgScore: 64 },
 	];
 
 	return {
@@ -51,6 +60,7 @@ export const load: PageServerLoad = async () => {
 		dailyChallenges,
 		studyingItems,
 		leaderboard,
-		payments
+		recentActivity,
+		subjectPerformance
 	};
 };

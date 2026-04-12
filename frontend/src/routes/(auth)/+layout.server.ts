@@ -11,7 +11,8 @@ export const load: LayoutServerLoad = async ({ fetch, url }) => {
   }
 
   // If logged in and fully ready, send to dashboard (backup for hooks)
-  const isVerified = user?.emailVerified === 'true' || user?.emailVerified === true;
+  // TEMPORARY: Bypass email verification until domain is configured for Resend
+  const isVerified = true; // user?.emailVerified === 'true' || user?.emailVerified === true;
   if (user && isVerified && user?.targetExam) {
     throw redirect(302, '/dashboard');
   }

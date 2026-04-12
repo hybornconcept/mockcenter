@@ -21,11 +21,21 @@
 	import * as Card from "$lib/components/ui/card";
 	import { Badge } from "$lib/components/ui/badge";
 
+	import { goto } from "$app/navigation";
+	
 	let { data } = $props();
 	let viewMode = $state("grid"); // grid | list
 	let activeTab = $state("All subjects");
+	let startingId = $state<number | null>(null);
 
 	let items = $derived(data.items);
+
+	async function startPractice(item: any) {
+		if (!item.examId || startingId) return;
+		startingId = item.id;
+		goto(`/start_practice?examId=${item.examId}&subjectId=${item.subjectId}`);
+		startingId = null;
+	}
 </script>
 
 {#snippet ringChart(percent: number, colorClass: string)}
@@ -153,11 +163,12 @@
 					class="flex flex-col h-full"
 				>
 					<Card.Root
-						class="group flex-1 overflow-hidden bg-white border border-slate-200 shadow-sm hover:shadow-lg hover:border-brand/60 hover:bg-brand-muted/20 hover:-translate-y-1 transition-all duration-300 flex flex-col rounded-lg p-0 pt-0 ring-0"
+						class="group flex-1 overflow-hidden bg-white border {startingId === item.id ? 'border-brand ring-2 ring-brand/20' : 'border-slate-200'} shadow-sm hover:shadow-lg hover:border-brand/60 hover:bg-brand-muted/20 transition-all duration-300 flex flex-col rounded-lg p-0 pt-0 ring-0 cursor-pointer"
+						onclick={() => startPractice(item)}
 					>
 						<!-- Card Header / Thumbnail -->
 						<div
-							class="h-32 bg-gradient-to-br {item.thumbnailGradient} p-3 relative"
+							class="h-[115px] bg-gradient-to-br {item.thumbnailGradient} p-3 relative"
 						>
 							<!-- Illustration Placeholder -->
 							<div
@@ -192,7 +203,7 @@
 							{/if}
 						</div>
 
-						<Card.Content class="px-3 pt-1.5 pb-4 flex-1 flex flex-col gap-3">
+						<Card.Content class="px-4 pt-3 pb-3 flex-1 flex flex-col gap-3">
 							<div class="flex items-start justify-between gap-4">
 								<Card.Title
 									class="font-extrabold text-[#083358] text-[16px] leading-tight -mt-1 line-clamp-2 min-h-5"
@@ -220,7 +231,7 @@
 							</div>
 
 							<!-- Progress & AI Analytics -->
-							<div class="space-y-3">
+							<div class="space-y-2.5">
 								<div
 									class="flex items-center justify-between text-[11px] font-bold"
 								>
@@ -255,8 +266,8 @@
 								</div>
 							</div>
 
-							<!-- Tags as Badges -->
-							<div class="flex items-center justify-between mt-auto">
+							<!-- Tags & Action -->
+							<div class="flex flex-col gap-3 mt-auto">
 								<div class="flex flex-wrap gap-2">
 									{#each item.tags as tag}
 										<Badge
@@ -270,11 +281,30 @@
 										</Badge>
 									{/each}
 								</div>
+
+								<Button 
+									class="w-full h-9 bg-brand hover:bg-brand/90 hover:-translate-y-0.5 text-white font-bold text-[13px] rounded-xl shadow-lg shadow-brand/10 group/btn transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+									disabled={startingId === item.id}
+									onclick={(e) => {
+										e.stopPropagation();
+										startPractice(item);
+									}}
+								>
+									{#if startingId === item.id}
+										Starting...
+									{:else}
+										<span>Proceed</span>
+										<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" class="transition-transform group-hover/btn:translate-x-0.5">
+											<line x1="5" y1="12" x2="19" y2="12"></line>
+											<polyline points="12 5 19 12 12 19"></polyline>
+										</svg>
+									{/if}
+								</Button>
 							</div>
 						</Card.Content>
 
 						<Card.Footer
-							class="px-3 py-1.5 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-400 font-medium bg-slate-50/10 mt-auto"
+							class="px-3 py-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-400 font-medium bg-slate-50/10"
 						>
 							<div class="flex items-center gap-3">
 								<span class="flex items-center gap-1.5">
@@ -291,6 +321,7 @@
 
 							<button
 								class="w-6 h-6 flex items-center justify-center hover:bg-slate-100 rounded-md transition-colors text-slate-400"
+								onclick={(e) => e.stopPropagation()}
 							>
 								<MoreHorizontal class="w-4 h-4" />
 							</button>

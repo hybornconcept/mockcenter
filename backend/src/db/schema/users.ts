@@ -1,5 +1,6 @@
-import { pgTable, text, integer, date, timestamp, pgEnum } from "drizzle-orm/pg-core";
-import { sql } from "drizzle-orm";
+import { pgTable, text, integer, date, timestamp, pgEnum, boolean } from "drizzle-orm/pg-core";
+
+// ─── Enums ────────────────────────────────────────────────────────────────────
 
 export const userTypeEnum = pgEnum("user_type", [
   "student",
@@ -15,17 +16,31 @@ export const examLevelEnum = pgEnum("exam_level", [
   "foundation", "skills", "professional", "not_applicable",
 ]);
 
+// ─── Users Table ──────────────────────────────────────────────────────────────
+// Single combined table serving as:
+//   1. Better Auth's "user" model (id, name, email, emailVerified, image, createdAt, updatedAt)
+//   2. App-specific profile fields (userType, targetExam, state, credits, referral, etc.)
+//
+// IMPORTANT: Better Auth manages id, name, email, emailVerified, image, createdAt, updatedAt.
+// All other columns are managed by our app directly via Drizzle queries.
+// emailVerified MUST be boolean — Better Auth writes boolean true/false to this column.
+
 export const users = pgTable("users", {
-  // Better Auth generates its own nanoid string IDs — must be text, not uuid
+  // Better Auth core fields — do NOT change column names or types
   id: text("id").primaryKey(),
-  email: text("email").unique().notNull(),
   name: text("name").notNull(),
-  avatarUrl: text("avatar_url"),
+  email: text("email").unique().notNull(),
+  emailVerified: boolean("email_verified").notNull().default(false),
+  image: text("image"),                          // avatar/profile picture URL
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+
+  // App profile fields — managed directly by our API routes
   phone: text("phone"),
   school: text("school"),
   state: text("state"),
 
-  // Onboarding fields
+  // Onboarding
   userType: userTypeEnum("user_type"),
   targetExam: examTypeEnum("target_exam"),
   examLevel: examLevelEnum("exam_level"),
@@ -33,11 +48,7 @@ export const users = pgTable("users", {
   examDate: date("exam_date"),
 
   // Credits & referral
-  emailVerified: text("email_verified").notNull().default("false"),
   creditBalance: integer("credit_balance").notNull().default(0),
-  referralCode: text("referral_code").unique().notNull().default(sql`substr(md5(random()::text), 1, 8)`),
-  referredBy: text("referred_by").references((): any => users.id),
-
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+  referralCode: text("referral_code").unique(),
+  referredBy: text("referred_by"),               // user.id of referrer (text FK, circular)
 });

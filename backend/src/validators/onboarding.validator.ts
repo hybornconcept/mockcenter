@@ -7,29 +7,23 @@ export const onboardingSchema = z.object({
 
   targetExam: z.enum([
     "jamb", "waec", "neco", "post_utme", "common_entrance", "nabteb",
-    "ican", "ican_atswa", "citn", "law_school", "trcn", "ielts", "nimasa", "other"
+    "ican", "ican_atswa", "citn", "law_school", "trcn", "ielts", "nimasa", "other",
   ]),
 
-  examLevel: z.enum([
-    "foundation", "skills", "professional", "not_applicable"
-  ]).default("not_applicable"),
+  examLevel: z
+    .enum(["foundation", "skills", "professional", "not_applicable"])
+    .default("not_applicable"),
 
   // targetScore meaning depends on exam type:
-  // JAMB: 100–400 (raw score)
-  // WAEC/NECO/NABTEB: 1–9 (number of credits)
-  // Post-UTME: 1–100 (percentage)
-  // Common Entrance: 50–100 (percentage)
-  // ICAN/CITN/Law School/ICAN ATSWA: 1–6 (number of papers)
-  // IELTS: 4–9 (band score, stored as x10 integer e.g. 7.5 → stored as 75)
-  // TRCN/NIMASA/Other: 1–100 (percentage)
-  targetScore: z.number()
-    .min(1, "Enter a valid target")
-    .max(400, "Value out of range"),
+  //   JAMB: 100–400 | WAEC/NECO/NABTEB: 1–9 | Post-UTME: 1–100
+  //   Common Entrance: 50–100 | ICAN/CITN/etc: 1–6 papers
+  //   IELTS: 4.0–9.0 (send as number, stored as-is) | TRCN/NIMASA: 1–100
+  targetScore: z.number().min(1, "Enter a valid target").max(400, "Value out of range"),
 
-  examDate: z.string()
-    .refine((val) => new Date(val) > new Date(), {
-      message: "Exam date must be in the future",
-    }),
+  examDate: z.string().refine(
+    (val) => !isNaN(Date.parse(val)) && new Date(val) > new Date(),
+    { message: "Exam date must be a valid future date" }
+  ),
 
   state: z.enum([
     "Abia", "Adamawa", "Akwa Ibom", "Anambra", "Bauchi", "Bayelsa",
@@ -37,7 +31,7 @@ export const onboardingSchema = z.object({
     "Enugu", "FCT", "Gombe", "Imo", "Jigawa", "Kaduna", "Kano",
     "Katsina", "Kebbi", "Kogi", "Kwara", "Lagos", "Nasarawa", "Niger",
     "Ogun", "Ondo", "Osun", "Oyo", "Plateau", "Rivers", "Sokoto",
-    "Taraba", "Yobe", "Zamfara"
+    "Taraba", "Yobe", "Zamfara",
   ]),
 });
 

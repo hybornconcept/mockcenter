@@ -153,8 +153,9 @@ export const actions: Actions = {
 				return message(form, error.message || 'Signup failed. Please try again.', { status: 400 });
 			}
 
-			// Better auth sign-up successful - email sent
-			throw redirect(302, `/verify-email?email=${encodeURIComponent(email)}`);
+			// Better auth sign-up successful - ordinarily this would go to verify email, but it's disabled.
+			// throw redirect(302, `/verify-email?email=${encodeURIComponent(email)}`);
+			throw redirect(302, '/dashboard');
 		}
 
 		// If user exists (e.g. from Google OAuth), they just need to onboard via a PATCH call

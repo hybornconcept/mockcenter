@@ -26,6 +26,7 @@ export const questions = pgTable("questions", {
   year: integer("year"),
   topic: text("topic"),
   body: text("body").notNull(),
+  imageUrl: text("image_url"),
   creditCost: integer("credit_cost").notNull().default(1),
   createdAt: timestamp("created_at").defaultNow(),
 });

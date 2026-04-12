@@ -8,28 +8,55 @@ port = 8787
 local_protocol = "http"
 ip = "127.0.0.1"
 
+# Static vars available in all environments
+# Secrets (API keys, passwords) go in .dev.vars (dev) or `wrangler secret put` (prod)
 [vars]
-APP_NAME = "ExamNow"
-API_VERSION = "v1"
+APP_NAME = "MockCenter"
 NODE_ENV = "development"
+APP_URL = "http://localhost:5173"
+API_URL = "http://localhost:8787"
+BETTER_AUTH_URL = "http://localhost:8787"
 
-
-
+# Hyperdrive — used in PRODUCTION only to pool connections to Neon PostgreSQL.
+# In dev, we connect directly to local pgAdmin via DATABASE_URL in .dev.vars.
+# To create: wrangler hyperdrive create mockcenter-hyperdrive --connection-string="$NEON_DATABASE_URL"
 [[hyperdrive]]
 binding = "HYPERDRIVE"
 id = "3491fff157c24aadacd1a0876628fb1b"
-local_connection_string = "postgresql://postgres:legacy@localhost:5432/mockcenter"
+localConnectionString = "postgresql://postgres:legacy@127.0.0.1:5432/mockcenter"
 
+# R2 Bucket for storing Biology and other question images
+[[r2_buckets]]
+binding = "QUESTION_IMAGES"
+bucket_name = "question-images"
+preview_bucket_name = "question-images-dev"
+
+# ── Production environment ────────────────────────────────────────────────────
 [env.production]
 name = "examenow-api-production"
 
 [env.production.vars]
+APP_NAME = "MockCenter"
 NODE_ENV = "production"
 APP_URL = "https://examenow.ng"
+API_URL = "https://api.examenow.ng"
+BETTER_AUTH_URL = "https://api.examenow.ng"
 
+# Production secrets — set via CLI, never commit to this file:
+#   wrangler secret put BETTER_AUTH_SECRET --env production
+#   wrangler secret put DATABASE_URL --env production
+#   wrangler secret put GOOGLE_CLIENT_ID --env production
+#   wrangler secret put GOOGLE_CLIENT_SECRET --env production
+#   wrangler secret put RESEND_API_KEY --env production
+#   wrangler secret put RESEND_FROM_EMAIL --env production
+
+# ── Staging environment ───────────────────────────────────────────────────────
 [env.staging]
 name = "examenow-api-staging"
 
 [env.staging.vars]
+APP_NAME = "MockCenter"
 NODE_ENV = "staging"
 APP_URL = "https://staging.examenow.ng"
+API_URL = "https://api-staging.examenow.ng"
+BETTER_AUTH_URL = "https://api-staging.examenow.ng"

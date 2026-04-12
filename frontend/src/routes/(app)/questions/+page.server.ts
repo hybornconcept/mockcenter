@@ -12,9 +12,11 @@ export const load: PageServerLoad = async () => {
 			avgSpeed: "38s/q",
 			avgSpeedPct: 70,
 			aiFeedback: "Well above average · Keep maintaining",
-			tags: ["2024", "2023", "2022", "2021", "2020"],
+			tags: ["Jamb", "2010"],
 			updated: "2h ago",
-			questions: 1820,
+			questions: 50,
+			examId: "9851e703-b3b8-41b1-a8a1-0dd4f1fc08c6",
+			subjectId: "dc71a89d-6bdb-4c70-a7f2-8565f8752c9b",
 		},
 		{
 			id: 2,

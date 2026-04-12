@@ -2,11 +2,11 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { zValidator } from "@hono/zod-validator";
 import { createDb } from "../db";
-import { practiceSessions, practiceAnswers, questions } from "../db/schema";
+import { practiceSessions, practiceAnswers, questions, exams, subjects } from "../db/schema";
 import { requireAuth } from "../middleware/auth.middleware";
 import { QuestionService } from "../services/question.service";
 import type { Env } from "../env";
-import { eq, and } from "drizzle-orm";
+import { eq, and, inArray } from "drizzle-orm";
 
 const practice = new Hono<{ Bindings: Env }>();
 
@@ -38,12 +38,16 @@ practice.post("/start", zValidator("json", startSessionSchema), async (c) => {
     return c.json({ success: false, message: "No questions found for these subjects" }, 404);
   }
 
+  // Persist question IDs so GET /:id always returns the same questions
+  const questionIds = selectedQuestions.map((q) => q.id);
+
   const [session] = await db.insert(practiceSessions).values({
     userId: user.id,
     examId,
     subjectIds,
     totalQuestions: selectedQuestions.length,
     status: "active",
+    resumeState: { questionIds },
   }).returning();
 
   return c.json({
@@ -98,14 +102,38 @@ practice.get("/:id", async (c) => {
   
   const session = await db.query.practiceSessions.findFirst({
     where: eq(practiceSessions.id, id),
-    with: {
-      // Assuming relations are set up in schema
-    }
   });
 
   if (!session) return c.json({ success: false, message: "Session not found" }, 404);
 
-  return c.json({ success: true, data: session });
+  const questionService = new QuestionService(db);
+
+  // Use stored question IDs from resumeState to guarantee the same set as session start
+  const storedIds = (session.resumeState as any)?.questionIds as string[] | undefined;
+  const questions = storedIds && storedIds.length > 0
+    ? await questionService.getQuestionsByIds(storedIds)
+    : await questionService.getQuestionsForSession(session.subjectIds as string[], session.totalQuestions);
+
+  const examRecord = await db.query.exams.findFirst({
+    where: eq(exams.id, session.examId)
+  });
+  
+  const subjectRecord = Array.isArray(session.subjectIds) && session.subjectIds.length > 0
+    ? await db.query.subjects.findFirst({
+        where: eq(subjects.id, (session.subjectIds as string[])[0])
+      })
+    : null;
+
+  return c.json({ 
+    success: true, 
+    data: { 
+      session, 
+      questions,
+      examType: examRecord?.type ? examRecord.type.toUpperCase() : "Exam",
+      subjectName: subjectRecord?.name || "Subject",
+      year: questions[0]?.year || "Year"
+    } 
+  });
 });
 
 export default practice;

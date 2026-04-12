@@ -37,8 +37,9 @@
 		onboardingSchema,
 		combinedSchema,
 	} from "$lib/schemas";
-
 	import { untrack } from "svelte";
+	import { authClient } from "$lib/auth-client";
+
 	// --- Data from Page Server ---
 	let { data } = $props();
 	const {
@@ -55,8 +56,8 @@
 	const activeSchema = $derived(user ? onboardingSchema : combinedSchema);
 	const activeInitialForm = $derived(user ? data.onboardingForm : data.combinedForm);
 
-	const mainForm = superForm(activeInitialForm as any, {
-		validators: valibotClient(activeSchema as any),
+	const mainForm = superForm(untrack(() => activeInitialForm) as any, {
+		validators: valibotClient(untrack(() => activeSchema) as any),
 		dataType: "json",
 		onSubmit: ({ jsonData }) => {
 			const d = jsonData as any;
@@ -86,6 +87,13 @@
 	} = mainForm;
 
 	let showPassword = $state(false);
+
+	async function signInWithGoogle() {
+		await authClient.signIn.social({
+			provider: "google",
+			callbackURL: `${window.location.origin}/dashboard`
+		});
+	}
 	let isCalendarOpen = $state(false);
 
 	// Calendar State

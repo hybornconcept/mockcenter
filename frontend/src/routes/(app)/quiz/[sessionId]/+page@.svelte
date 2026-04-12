@@ -70,24 +70,28 @@
 
 	function reportIssue(questionId: number) {
 		console.log("Report issue for question:", questionId);
-	}../../$types.js
+	}
 
 	let { data } = $props();
 
-	// --- Mock Data ---
-	let questions: Question[] = $state(untrack(() => data.questions));
-
-	$effect(() => {
-		questions = data.questions;
-	});
+	// --- State ---
+	let questions: any[] = $state([]);
+	let loading = $state(true);
+	let loadError = $state(false);
+	// Use $state (not $derived) so they can be overridden with fresher API data
+	let subjectName = $state(untrack(() => data.subjectName));
+	let examType = $state(untrack(() => data.examType));
+	let examYear = $state(untrack(() => data.year));
 
 	let currentQuestionIndex = $state(0);
 	let currentPageIndex = $state(0);
 	let timeElapsed = $state(0);
+	let timeRemaining = $state(0);
 	let slideDirection = $state(1);
 
 	// --- Derived State ---
-	const QUESTIONS_PER_PAGE = 5;
+	let QUESTIONS_PER_PAGE = $derived(data.questionsPerPage || 5);
+	let isTimed = $derived(data.duration > 0);
 	let visibleQuestions = $derived(
 		questions.slice(
 			currentPageIndex * QUESTIONS_PER_PAGE,
@@ -115,10 +119,66 @@
 	// --- Timer Logic ---
 	let timerInterval: ReturnType<typeof setInterval>;
 
-	onMount(() => {
+	// Single onMount: fetch questions then start timer
+	onMount(async () => {
+		// 1. Fetch questions
+		try {
+			const res = await fetch(`/api/practice/${data.sessionId}`);
+			const json = await res.json();
+			if (json.success && json.data.questions) {
+				let fetchedQuestions = json.data.questions.map((q: any) => ({
+					...q,
+					text: q.body,
+					status: "not-visited",
+					selectedOption: null,
+					isBookmarked: false,
+				}));
+
+				if (data.shuffle) {
+					for (let i = fetchedQuestions.length - 1; i > 0; i--) {
+						const j = Math.floor(Math.random() * (i + 1));
+						[fetchedQuestions[i], fetchedQuestions[j]] = [fetchedQuestions[j], fetchedQuestions[i]];
+					}
+				}
+
+				subjectName = json.data.subjectName || subjectName;
+				examType = json.data.examType || examType;
+				examYear = json.data.year || examYear;
+				questions = fetchedQuestions;
+
+				// Mark first question as not-answered
+				if (fetchedQuestions.length > 0) {
+					questions[0].status = "not-answered";
+				}
+			} else {
+				console.error("Failed to fetch session questions", json);
+				loadError = true;
+			}
+		} catch (err) {
+			console.error(err);
+			loadError = true;
+		} finally {
+			loading = false;
+		}
+
+		// 2. Start timer after data is loaded
+		if (isTimed) {
+			timeRemaining = data.duration * 60;
+		}
+
 		timerInterval = setInterval(() => {
-			timeElapsed++;
+			if (isTimed) {
+				if (timeRemaining > 0) {
+					timeRemaining--;
+				} else {
+					clearInterval(timerInterval);
+					// TODO: Auto-submit quiz when time is up
+				}
+			} else {
+				timeElapsed++;
+			}
 		}, 1000);
+
 		return () => clearInterval(timerInterval);
 	});
 
@@ -133,10 +193,10 @@
 		return { h, m, s };
 	}
 
-	let timeDisplay = $derived(formatTime(timeElapsed));
+	let timeDisplay = $derived(formatTime(isTimed ? timeRemaining : timeElapsed));
 
 	// --- Actions ---
-	function selectOption(questionId: number, optionOptionIndex: number) {
+	function selectOption(questionId: string, optionOptionIndex: number) {
 		const qIndex = questions.findIndex((q) => q.id === questionId);
 		if (qIndex !== -1) {
 			questions[qIndex].selectedOption = optionOptionIndex;
@@ -192,10 +252,10 @@
 				</div>
 				<div>
 					<h2 class="font-bold text-slate-800 text-[15px] leading-tight">
-						Reasoning
+						{subjectName}
 					</h2>
 					<p class="text-[11px] text-slate-500 font-semibold mt-0.5">
-						AFCAT Test Series 2023 I
+						{examType} {examYear}
 					</p>
 				</div>
 			</div>
@@ -208,7 +268,7 @@
 				variant="secondary"
 				class="bg-brand/10 text-brand hover:bg-brand/10 text-[10px] uppercase font-bold py-0.5 px-3 tracking-widest shadow-none rounded-full"
 			>
-				Timed Mode
+				Progress
 			</Badge>
 			<div class="flex items-center gap-4 w-full">
 				<Progress
@@ -228,9 +288,7 @@
 			>
 				<Timer class="w-4 h-4" />
 				<span
-					>{timeDisplay.h === "00"
-						? ""
-						: timeDisplay.h + ":"}{timeDisplay.m}:{timeDisplay.s}</span
+					>{timeDisplay.h}:{timeDisplay.m}:{timeDisplay.s}</span
 				>
 			</div>
 			<Button
@@ -261,68 +319,110 @@
 			<div
 				class="w-full max-w-[1000px] flex flex-col gap-8 bg-transparent mt-4"
 			>
-				<div class="grid grid-cols-1 grid-rows-1 w-full">
-					{#key currentPageIndex}
-						<div
-							class="col-start-1 row-start-1"
-							in:fly={{ x: 50 * slideDirection, duration: 400, delay: 150 }}
-							out:fly={{ x: -50 * slideDirection, duration: 400 }}
-						>
-							{#each visibleQuestions as question (question.id)}
-								<QuestionCard
-									{question}
-									{fontSize}
-									onSelectOption={selectOption}
-									onNextPage={() => goToQuestion(currentQuestionIndex + 1)}
-									onPrevPage={() => goToQuestion(currentQuestionIndex - 1)}
-									onToggleCalculator={toggleCalculator}
-									isCalculatorActive={isCalculatorOpen}
-									onToggleFlag={() => toggleFlag(question.id)}
-									onToggleBookmark={() => toggleBookmark(question.id)}
-									onClearOption={() => clearOption(question.id)}
-									onReportIssue={() => reportIssue(question.id)}
-									onChangeFontSize={(delta) =>
-										(fontSize = Math.min(24, Math.max(12, fontSize + delta)))}
-								/>
-							{/each}
+				{#if loading}
+					<!-- Loading skeleton -->
+					{#each Array(Math.min(data.questionsPerPage || 5, 3)) as _, i}
+						<div class="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden animate-pulse mb-6">
+							<div class="px-4 py-3 flex items-center justify-between border-b border-slate-100">
+								<div class="flex items-center gap-2.5">
+									<div class="w-6 h-6 bg-slate-200 rounded-lg"></div>
+									<div class="w-32 h-4 bg-slate-200 rounded-md"></div>
+								</div>
+								<div class="w-40 h-8 bg-slate-100 rounded-full"></div>
+							</div>
+							<div class="py-5 px-8 space-y-4">
+								<div class="space-y-2">
+									<div class="w-full h-4 bg-slate-100 rounded"></div>
+									<div class="w-4/5 h-4 bg-slate-100 rounded"></div>
+									<div class="w-3/5 h-4 bg-slate-100 rounded"></div>
+								</div>
+								<div class="space-y-2 pt-2">
+									{#each [1,2,3,4] as _}
+										<div class="w-full h-10 bg-slate-100 rounded-lg"></div>
+									{/each}
+								</div>
+							</div>
 						</div>
-					{/key}
-				</div>
+					{/each}
+				{:else if loadError || questions.length === 0}
+					<!-- Error / empty state -->
+					<div class="flex flex-col items-center justify-center py-20 text-center">
+						<div class="w-16 h-16 rounded-2xl bg-red-50 flex items-center justify-center mb-4">
+							<svg class="w-8 h-8 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+								<path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+							</svg>
+						</div>
+						<h3 class="text-lg font-bold text-slate-800 mb-1">{loadError ? "Failed to load session" : "No questions loaded"}</h3>
+						<p class="text-sm text-slate-500 max-w-xs">{loadError ? "An error occurred while fetching the quiz data from the server. Please check your connection." : "We couldn't load the questions for this session. Please go back and try starting a new session."}</p>
+						<a href="/start_practice" class="mt-6 px-6 py-2.5 bg-brand text-white rounded-xl font-bold text-sm hover:bg-brand/90 transition-colors shadow-sm">
+							← Back to Practice
+						</a>
+					</div>
+				{:else}
+					<div class="grid grid-cols-1 grid-rows-1 w-full">
+						{#key currentPageIndex}
+							<div
+								class="col-start-1 row-start-1"
+								in:fly={{ x: 50 * slideDirection, duration: 400, delay: 150 }}
+								out:fly={{ x: -50 * slideDirection, duration: 400 }}
+							>
+								{#each visibleQuestions as question (question.id)}
+									<QuestionCard
+										{question}
+										index={questions.findIndex(q => q.id === question.id) + 1}
+										{fontSize}
+										onSelectOption={selectOption}
+										onNextPage={() => goToQuestion(currentQuestionIndex + 1)}
+										onPrevPage={() => goToQuestion(currentQuestionIndex - 1)}
+										onToggleCalculator={toggleCalculator}
+										isCalculatorActive={isCalculatorOpen}
+										onToggleFlag={() => toggleFlag(question.id)}
+										onToggleBookmark={() => toggleBookmark(question.id)}
+										onClearOption={() => clearOption(question.id)}
+										onReportIssue={() => reportIssue(question.id)}
+										onChangeFontSize={(delta) =>
+											(fontSize = Math.min(24, Math.max(12, fontSize + delta)))}
+									/>
+								{/each}
+							</div>
+						{/key}
+					</div>
 
-				<!-- Floating Calculator Overlay -->
-				{#if isCalculatorOpen}
-					<div
-						class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 pointer-events-auto"
-						in:fly={{ y: 20, duration: 400 }}
-						out:fly={{ y: 20, duration: 200 }}
-					>
-						<CalculatorUI onClose={() => (isCalculatorOpen = false)} />
+					<!-- Floating Calculator Overlay -->
+					{#if isCalculatorOpen}
+						<div
+							class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 pointer-events-auto"
+							in:fly={{ y: 20, duration: 400 }}
+							out:fly={{ y: 20, duration: 200 }}
+						>
+							<CalculatorUI onClose={() => (isCalculatorOpen = false)} />
+						</div>
+					{/if}
+
+					<div class="flex items-center justify-between pt-4 pb-8">
+						<Button
+							variant="outline"
+							class="text-slate-600 hover:bg-slate-50 rounded-xl h-10 shadow-sm font-semibold px-6"
+							onclick={prevPage}
+							disabled={currentPageIndex === 0}
+						>
+							<ArrowLeft class="w-4 h-4 mr-2" />
+							Previous Page
+						</Button>
+						<Button
+							class="bg-brand hover:bg-brand/90 text-white shadow-md rounded-xl px-6 h-10 font-bold transition-all"
+							onclick={nextPage}
+						>
+							Next Page
+							<ArrowRight class="w-4 h-4 ml-2" />
+						</Button>
 					</div>
 				{/if}
-
-				<div class="flex items-center justify-between pt-4 pb-8">
-					<Button
-						variant="outline"
-						class="text-slate-600 hover:bg-slate-50 rounded-xl h-10 shadow-sm font-semibold px-6"
-						onclick={prevPage}
-						disabled={currentPageIndex === 0}
-					>
-						<ArrowLeft class="w-4 h-4 mr-2" />
-						Previous Page
-					</Button>
-					<Button
-						class="bg-brand hover:bg-brand/90 text-white shadow-md rounded-xl px-6 h-10 font-bold transition-all"
-						onclick={nextPage}
-					>
-						Next Page
-						<ArrowRight class="w-4 h-4 ml-2" />
-					</Button>
-				</div>
 			</div>
 		</div>
 
 		<aside
-			class="w-[270px] bg-white border-l border-slate-200 flex flex-col shadow-[-10px_0_30px_-15px_rgba(0,0,0,0.05)] z-10 shrink-0"
+			class="w-[300px] bg-white border-l border-slate-200 flex flex-col shadow-[-10px_0_30px_-15px_rgba(0,0,0,0.05)] z-10 shrink-0"
 		>
 			<div class="p-4 pb-2 shrink-0 flex items-center justify-between">
 				<div class="flex items-center gap-2.5">
@@ -378,15 +478,15 @@
 				>
 					<!-- Question Grid -->
 					<div class="grid grid-cols-5 gap-y-3 gap-x-2 shrink-0">
-						{#each questions as q}
-							{@const isCurrent = q.id === currentQuestion.id}
+						{#each questions as q, index}
+							{@const isCurrent = currentQuestion ? q.id === currentQuestion.id : false}
 							{@const isAnswered =
 								q.status === "answered" || q.status === "marked-answered"}
 							{@const isFlagged =
 								q.status === "marked" || q.status === "marked-answered"}
 
 							<button
-								onclick={() => goToQuestion(q.id - 1)}
+								onclick={() => goToQuestion(index)}
 								class="aspect-square w-[35px] mx-auto rounded-lg flex items-center justify-center text-[11px] font-semibold transition-all relative {isCurrent
 									? 'bg-brand/50 text-white shadow-md ring-2 ring-brand/50 ring-offset-2'
 									: isAnswered
@@ -395,7 +495,7 @@
 											? 'bg-amber-50 text-amber-700 border border-amber-200 shadow-sm'
 											: 'bg-white text-slate-500 border border-slate-200 hover:border-brand/40 shadow-sm'}"
 							>
-								{q.id.toString().padStart(2, "0")}
+								{(index + 1).toString().padStart(2, "0")}
 								{#if isFlagged}
 									<div
 										class="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-red-500 border-2 border-white shadow-sm"

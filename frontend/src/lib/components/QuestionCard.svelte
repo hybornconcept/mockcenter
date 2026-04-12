@@ -21,6 +21,7 @@
 
 	let {
 		question,
+		index,
 		onSelectOption,
 		onPrevPage,
 		onNextPage,
@@ -33,8 +34,9 @@
 		onReportIssue,
 		onChangeFontSize,
 	}: {
-		question: Question;
-		onSelectOption: (id: number, idx: number) => void;
+		question: Question | any;
+		index: number;
+		onSelectOption: (id: string, idx: number) => void;
 		onPrevPage?: () => void;
 		onNextPage?: () => void;
 		onToggleCalculator?: () => void;
@@ -63,7 +65,7 @@
 				?
 			</div>
 			<h2 class="font-semibold text-slate-800 text-[15px] leading-tight">
-				Question {question.id} <span class="text-red-600 ml-0.5">*</span>
+				Question {index} <span class="text-red-600 ml-0.5">*</span>
 			</h2>
 		</div>
 		<div
@@ -119,6 +121,22 @@
 
 	<Card.Content class="py-4 px-8">
 		<div class="mb-5">
+			{#if question.topic || question.imageUrl}
+				<div class="mb-4 bg-brand/5 border border-brand/10 p-4 rounded-xl flex flex-col items-center justify-center">
+					{#if question.topic}
+						<div class="text-brand text-[14px] font-semibold leading-relaxed mb-4 text-center">
+							{question.topic.replace(/above/gi, "below").replace(/(?:this\s+)?question(s)?\s+\d+(\s+and\s+\d+)?/gi, "this question")}
+						</div>
+					{/if}
+					{#if question.imageUrl}
+						{@const imgSrc = question.imageUrl.startsWith('http') ? question.imageUrl : `/images/${question.imageUrl}`}
+						<div class="rounded-lg overflow-hidden flex justify-center bg-white p-2 shadow-sm border border-brand/10">
+							<img src={imgSrc} alt="Reference Material" class="max-w-full max-h-[350px] object-contain rounded-md" />
+						</div>
+					{/if}
+				</div>
+			{/if}
+			
 			<div
 				class="bg-slate-50/80 rounded-xl p-4 text-slate-800 font-medium leading-relaxed border border-slate-100 shadow-inner group-hover:bg-white transition-all duration-300"
 				style="font-size: {fontSize}px"
@@ -165,7 +183,7 @@
 								{String.fromCharCode(65 + idx)}
 							</span>
 
-							<span>{option}</span>
+							<span>{option.body ?? option}</span>
 
 							<div
 								class="ml-auto flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"

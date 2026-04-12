@@ -8,13 +8,13 @@ const BACKEND = dev ? 'http://127.0.0.1:8787' : '';
  * Fetch user session directly from the backend.
  * Returns null on any error or timeout — never throws.
  */
-async function getSessionUser(cookieHeader: string): Promise<Record<string, unknown> | null> {
+async function getSessionUser(cookieHeader: string, svelteFetch: typeof fetch): Promise<Record<string, unknown> | null> {
   if (!cookieHeader?.includes('better-auth')) return null;
 
   const timeout = new Promise<null>(resolve => setTimeout(() => resolve(null), 4000));
   try {
     const result = await Promise.race([
-      fetch(`${BACKEND}/api/users/me`, {
+      svelteFetch(`${BACKEND}/api/users/me`, {
         headers: { cookie: cookieHeader },
       }),
       timeout,
@@ -55,14 +55,15 @@ export const handle: Handle = async ({ event, resolve }) => {
   const cookieHeader = event.request.headers.get('cookie') ?? '';
   const isAppRoute = appRoutes.some(r => path.startsWith(r));
 
-  const user = await getSessionUser(cookieHeader);
+  const user = await getSessionUser(cookieHeader, event.fetch);
 
   // 5. Expose user via locals so page load functions don't need to re-fetch
   event.locals.user = user as App.Locals['user'];
 
   // 6. Logic
   const isLoggedIn = !!user;
-  const isVerified = user?.emailVerified === 'true' || user?.emailVerified === true;
+  // TEMPORARY: Bypass email verification until domain is configured for Resend
+  const isVerified = true; // user?.emailVerified === 'true' || user?.emailVerified === true;
   const isOnboarded = !!user?.targetExam;
   const isAuthPage = authRoutes.some(r => path === r);
 
