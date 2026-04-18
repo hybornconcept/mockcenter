@@ -11,17 +11,17 @@
 	}: WithoutChildrenOrChild<ProgressPrimitive.RootProps> = $props();
 </script>
 
-<ProgressPrimitive.Root
-	bind:ref
+<div
 	data-slot="progress"
-	class={cn("bg-muted h-1 rounded-full relative flex w-full items-center overflow-x-hidden", className)}
-	{value}
-	{max}
-	{...restProps}
+	class={cn("bg-gray-100 h-1.5 rounded-full relative flex w-full items-center overflow-hidden", className)}
+	role="progressbar"
+	aria-valuenow={value}
+	aria-valuemin={0}
+	aria-valuemax={max}
 >
 	<div
 		data-slot="progress-indicator"
-		class="bg-primary size-full flex-1 transition-all"
-		style="transform: translateX(-{100 - (100 * (value ?? 0)) / (max ?? 1)}%)"
+		class="bg-brand h-full transition-all duration-1000 rounded-full shadow-[0_1px_4px_rgba(0,0,0,0.05)]"
+		style="width: {(value ?? 0)}%"
 	></div>
-</ProgressPrimitive.Root>
+</div>

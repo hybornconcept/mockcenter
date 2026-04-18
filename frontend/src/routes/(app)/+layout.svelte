@@ -17,11 +17,14 @@
 		Settings,
 	} from "lucide-svelte";
 	import { page } from "$app/stores";
+	import { goto } from "$app/navigation";
 	import "../layout.css";
 	import * as Sidebar from "$lib/components/ui/sidebar/index.js";
+	import Confirmation from "$lib/components/Confirmation.svelte";
 
 	let { children } = $props();
 	let isExpanded = $state(true);
+	let showLogoutModal = $state(false);
 
 	const mainLinks = [
 		{
@@ -288,16 +291,16 @@
 						<Settings class="w-5 h-5 shrink-0" stroke-width={1.2} />
 						{#if isExpanded}<span>Settings</span>{/if}
 					</a>
-					<a
-						href="/logout"
-						class="flex items-center gap-3 py-1.5 rounded-lg font-medium text-[13px] transition-all text-red-500/80 hover:bg-red-50 hover:text-red-600 {isExpanded
+					<button
+						onclick={() => (showLogoutModal = true)}
+						class="w-full text-left flex items-center gap-3 py-1.5 rounded-lg font-medium text-[13px] transition-all text-red-500/80 hover:bg-red-50 hover:text-red-600 {isExpanded
 							? 'px-3 justify-start'
 							: 'px-0 justify-center'}"
 						title="Log Out"
 					>
 						<LogOut class="w-5 h-5 shrink-0" stroke-width={1.2} />
 						{#if isExpanded}<span>Log Out</span>{/if}
-					</a>
+					</button>
 				</div>
 			</div>
 		</Sidebar.Content>
@@ -401,6 +404,19 @@
 		{@render children()}
 	</Sidebar.Inset>
 </Sidebar.Provider>
+
+<Confirmation
+	bind:open={showLogoutModal}
+	title="Are you sure?"
+	description="Are you sure you want to log out? This action will end your current session."
+	confirmText="Log Out"
+	cancelText="Cancel"
+	icon={LogOut}
+	iconColorClass="text-red-500"
+	iconBgClass="bg-red-50"
+	confirmBtnClass="bg-[#e44d4d] hover:bg-[#d43d3d] shadow-lg shadow-red-500/20 text-white"
+	onConfirm={() => goto("/")}
+/>
 
 <style>
 	.custom-scrollbar::-webkit-scrollbar {
