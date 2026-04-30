@@ -39,47 +39,78 @@ export const handle: Handle = async ({ event, resolve }) => {
   }
 
   // 2. Route categories
+  // Google OAuth callback must be a passthrough (no session check during redirect)
   const publicPassthrough = ['/auth/callback', '/logout', '/api/auth', '/login/google'];
-  const authRoutes = ['/login', '/register', '/forgot-password', '/verify-email'];
+  
+  // Auth pages (unauthenticated users only)
+  const authRoutes = ['/login', '/register', '/forgot-password'];
+  
+  // Protected app routes
   const appRoutes = [
     '/dashboard', '/quiz', '/questions', '/start_practice',
     '/results', '/analytics', '/bookmarks', '/notifications', '/referrals',
+    '/onboarding',
   ];
+
+  // Admin routes require auth + admin role
+  const adminRoutes = ['/admin'];
 
   // 3. OAuth / logout routes — pass through with no session check
   if (publicPassthrough.some(p => path.startsWith(p))) {
     return resolve(event);
   }
 
-  // 4. Fetch session (fast-path: skip if no cookie and not a protected route)
+  // 4. Fetch session
   const cookieHeader = event.request.headers.get('cookie') ?? '';
   const isAppRoute = appRoutes.some(r => path.startsWith(r));
+  const isAdminRoute = adminRoutes.some(r => path.startsWith(r));
 
   const user = await getSessionUser(cookieHeader, event.fetch);
 
   // 5. Expose user via locals so page load functions don't need to re-fetch
   event.locals.user = user as App.Locals['user'];
 
-  // 6. Logic
+  // 6. Routing logic
   const isLoggedIn = !!user;
-  // TEMPORARY: Bypass email verification until domain is configured for Resend
+  // Email verification is bypassed until production deployment
   const isVerified = true; // user?.emailVerified === 'true' || user?.emailVerified === true;
   const isOnboarded = !!user?.targetExam;
-  const isAuthPage = authRoutes.some(r => path === r);
+  const isAdmin = !!(user as any)?.isAdmin;
+  const isAuthPage = authRoutes.some(r => path === r || path.startsWith(r + '/'));
 
   if (isLoggedIn) {
-    if (!isVerified && path !== '/verify-email') {
-      throw redirect(302, `/verify-email?email=${encodeURIComponent(user!.email as string)}`);
+    // ── Root path redirect (e.g. after Google OAuth sets a cookie) ────────────
+    if (path === '/') {
+      if (isAdmin) throw redirect(302, '/admin');
+      if (isOnboarded) throw redirect(302, '/dashboard');
+      throw redirect(302, '/onboarding');
     }
-    if (isVerified && !isOnboarded && path !== '/register') {
-      throw redirect(302, '/register');
-    }
-    if (isVerified && isOnboarded && isAuthPage) {
-      throw redirect(302, '/dashboard');
+
+    // ── Admin fast-path ───────────────────────────────────────────────────────
+    if (isAdmin) {
+      // Keep admin on /admin namespace; redirect away from auth and user app
+      if (isAuthPage || appRoutes.filter(r => r !== '/onboarding').some(r => path.startsWith(r))) {
+        throw redirect(302, '/admin');
+      }
+    } else {
+      // ── Regular user path ───────────────────────────────────────────────────
+      // Non-onboarded users can only visit /onboarding (and auth pages to log out)
+      if (isVerified && !isOnboarded && !isAuthPage && path !== '/onboarding') {
+        throw redirect(302, '/onboarding');
+      }
+      // Fully onboarded users don't need auth pages anymore
+      if (isVerified && isOnboarded && isAuthPage) {
+        throw redirect(302, '/dashboard');
+      }
+      // Prevent non-admins from accessing admin routes
+      if (isAdminRoute) {
+        throw redirect(302, '/dashboard');
+      }
     }
   }
 
-  if (!isLoggedIn && isAppRoute) {
+  // 7. Unauthenticated users trying to access protected routes → login
+  if (!isLoggedIn && (isAppRoute || isAdminRoute)) {
     throw redirect(302, `/login?redirectTo=${encodeURIComponent(path)}`);
   }
 

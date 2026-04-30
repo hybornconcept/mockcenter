@@ -4,28 +4,85 @@
 	import { Eye, EyeOff, LoaderCircle, Mail, Sparkles } from "lucide-svelte";
 	import { Button } from "$lib/components/ui/button";
 	import { Input } from "$lib/components/ui/input";
-	import { Label } from "$lib/components/ui/label";
 	import * as Form from "$lib/components/ui/form/index.js";
 	import { goto } from "$app/navigation";
 	import { superForm } from "sveltekit-superforms";
 	import { valibotClient } from "sveltekit-superforms/adapters";
 	import { loginSchema } from "$lib/schemas";
-
 	import { authClient } from "$lib/auth-client";
+	import { toast } from "svelte-sonner";
 
 	let { data } = $props();
 
-	const loginForm = superForm(() => data.form, {
-		validators: valibotClient(loginSchema)
+	// svelte-ignore state_referenced_locally
+	const loginForm = superForm(data.form, {
+		validators: valibotClient(loginSchema),
+		SPA: true,
+		async onUpdate({ form, cancel }) {
+			if (!form.valid) return;
+
+			const res = await authClient.signIn.email({
+				email: form.data.email,
+				password: form.data.password,
+			});
+
+			if (res.error) {
+				const errMsg = res.error.message || 'Login failed';
+				const isNotFound =
+					errMsg.toLowerCase().includes('not found') ||
+					errMsg.toLowerCase().includes('no account') ||
+					errMsg.toLowerCase().includes('does not exist') ||
+					res.error.status === 404;
+
+				const isWrongPassword =
+					errMsg.toLowerCase().includes('password') ||
+					errMsg.toLowerCase().includes('invalid credentials') ||
+					res.error.status === 401;
+
+				if (isNotFound) {
+					toast.error('No account found', {
+						description: 'No account exists with this email. Please register first.',
+					});
+				} else if (isWrongPassword) {
+					toast.error('Incorrect password', {
+						description: 'The password you entered is wrong. Please try again.',
+					});
+				} else {
+					toast.error('Login failed', {
+						description: errMsg,
+					});
+				}
+
+				cancel();
+				return;
+			}
+
+			toast.success('Welcome back!', { description: 'Signing you in...' });
+
+			const loggedInUser = (res.data?.user) as any;
+			const params = new URLSearchParams(window.location.search);
+			const requestedRedirect = params.get('redirectTo');
+
+			if (loggedInUser?.isAdmin) {
+				goto(requestedRedirect?.startsWith('/admin') ? requestedRedirect : '/admin');
+			} else if (!loggedInUser?.targetExam) {
+				// User hasn't completed onboarding
+				goto('/onboarding');
+			} else {
+				goto(requestedRedirect || '/dashboard');
+			}
+		}
 	});
 
 	const { form: formData, errors, enhance, delayed } = loginForm;
 	let showPassword = $state(false);
 
 	async function signInWithGoogle() {
+		const params = new URLSearchParams(window.location.search);
+		const requestedRedirect = params.get('redirectTo');
 		await authClient.signIn.social({
 			provider: "google",
-			callbackURL: `${window.location.origin}/dashboard`
+			callbackURL: `${window.location.origin}/auth/callback${requestedRedirect ? `?redirectTo=${encodeURIComponent(requestedRedirect)}` : ''}`
 		});
 	}
 </script>
@@ -73,48 +130,48 @@
 				<p class="text-slate-500 text-sm">Please enter your credentials to access your dashboard.</p>
 			</div>
 
-				<form method="POST" use:enhance class="space-y-6">
-					<Form.Field form={loginForm} name="email">
-						<Form.Control>
-							{#snippet children({ props })}
-								<Form.Label class="text-xs font-bold text-slate-700 uppercase tracking-wider pl-1">Email Address</Form.Label>
-								<div class="relative group">
-									<Mail class="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-brand transition-colors" />
-									<Input {...props} type="email" bind:value={$formData.email} placeholder="you@example.com" class="h-12 pl-11 bg-white border-slate-200 focus-visible:ring-brand focus-visible:border-brand rounded-xl" />
-								</div>
-							{/snippet}
-						</Form.Control>
-						<Form.FieldErrors class="text-xs font-bold text-red-500 mt-1 pl-1" />
-					</Form.Field>
+			<form method="POST" use:enhance class="space-y-6">
+				<Form.Field form={loginForm} name="email">
+					<Form.Control>
+						{#snippet children({ props })}
+							<Form.Label class="text-xs font-bold text-slate-700 uppercase tracking-wider pl-1">Email Address</Form.Label>
+							<div class="relative group">
+								<Mail class="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-brand transition-colors" />
+								<Input {...props} type="email" bind:value={$formData.email} placeholder="you@example.com" class="h-12 pl-11 bg-white border-slate-200 focus-visible:ring-brand focus-visible:border-brand rounded-xl" />
+							</div>
+						{/snippet}
+					</Form.Control>
+					<Form.FieldErrors class="text-xs font-bold text-red-500 mt-1 pl-1" />
+				</Form.Field>
 
-					<Form.Field form={loginForm} name="password">
-						<Form.Control>
-							{#snippet children({ props })}
-								<div class="flex justify-between items-center pr-1">
-									<Form.Label class="text-xs font-bold text-slate-700 uppercase tracking-wider">Password</Form.Label>
-									<a href="/forgot-password" class="text-xs font-bold text-brand hover:underline">Forgot?</a>
-								</div>
-								<div class="relative group">
-									<Input {...props} type={showPassword ? "text" : "password"} bind:value={$formData.password} placeholder="••••••••" class="h-12 bg-white border-slate-200 focus-visible:ring-brand focus-visible:border-brand pr-12 rounded-xl" />
-									<button type="button" onclick={() => (showPassword = !showPassword)} class="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors">
-										{#if showPassword}<EyeOff class="w-4 h-4" />{:else}<Eye class="w-4 h-4" />{/if}
-									</button>
-								</div>
-							{/snippet}
-						</Form.Control>
-						<Form.FieldErrors class="text-xs font-bold text-red-500 mt-1 pl-1" />
-					</Form.Field>
+				<Form.Field form={loginForm} name="password">
+					<Form.Control>
+						{#snippet children({ props })}
+							<div class="flex justify-between items-center pr-1">
+								<Form.Label class="text-xs font-bold text-slate-700 uppercase tracking-wider">Password</Form.Label>
+								<a href="/forgot-password" class="text-xs font-bold text-brand hover:underline">Forgot?</a>
+							</div>
+							<div class="relative group">
+								<Input {...props} type={showPassword ? "text" : "password"} bind:value={$formData.password} placeholder="••••••••" class="h-12 bg-white border-slate-200 focus-visible:ring-brand focus-visible:border-brand pr-12 rounded-xl" />
+								<button type="button" onclick={() => (showPassword = !showPassword)} class="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors">
+									{#if showPassword}<EyeOff class="w-4 h-4" />{:else}<Eye class="w-4 h-4" />{/if}
+								</button>
+							</div>
+						{/snippet}
+					</Form.Control>
+					<Form.FieldErrors class="text-xs font-bold text-red-500 mt-1 pl-1" />
+				</Form.Field>
 
-					<Button type="submit" disabled={$delayed} class="w-full h-12 bg-brand hover:bg-brand-dark text-white font-extrabold text-sm shadow-md rounded-xl flex items-center justify-center gap-2">
-						{#if $delayed}
-							<LoaderCircle class="w-4 h-4 animate-spin" />
-							Logging in...
-						{:else}
-							<Sparkles class="w-4 h-4" />
-							Login to Account
-						{/if}
-					</Button>
-				</form>
+				<Button type="submit" disabled={$delayed} class="w-full h-12 bg-brand hover:bg-brand-dark text-white font-extrabold text-sm shadow-md rounded-xl flex items-center justify-center gap-2">
+					{#if $delayed}
+						<LoaderCircle class="w-4 h-4 animate-spin" />
+						Logging in...
+					{:else}
+						<Sparkles class="w-4 h-4" />
+						Login to Account
+					{/if}
+				</Button>
+			</form>
 
 			<div class="mt-8 space-y-6">
 				<div class="flex items-center gap-3">

@@ -10,7 +10,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 };
 
 export const actions: Actions = {
-	default: async ({ request, fetch }) => {
+	default: async ({ request, fetch, url }) => {
 		const form = await superValidate(request, valibot(loginSchema));
 
 		if (!form.valid) {
@@ -28,8 +28,10 @@ export const actions: Actions = {
 			return message(form, error.message || 'Login failed', { status: 400 });
 		}
 
+		const redirectTo = url.searchParams.get('redirectTo') || '/dashboard';
+
 		// Success — session cookie is set; hooks.server.ts will route
 		// the user correctly on the next request (verify → onboard → dashboard)
-		throw redirect(302, '/dashboard');
+		throw redirect(302, redirectTo);
 	}
 };

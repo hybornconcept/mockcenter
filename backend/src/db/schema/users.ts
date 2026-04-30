@@ -1,54 +1,52 @@
-import { pgTable, text, integer, date, timestamp, pgEnum, boolean } from "drizzle-orm/pg-core";
-
-// ─── Enums ────────────────────────────────────────────────────────────────────
-
-export const userTypeEnum = pgEnum("user_type", [
-  "student",
-  "professional",
-]);
-
-export const examTypeEnum = pgEnum("exam_type", [
-  "jamb", "waec", "neco", "post_utme", "common_entrance", "nabteb",
-  "ican", "ican_atswa", "citn", "law_school", "trcn", "ielts", "nimasa", "other",
-]);
-
-export const examLevelEnum = pgEnum("exam_level", [
-  "foundation", "skills", "professional", "not_applicable",
-]);
+import { pgTable, text, integer, date, timestamp, boolean, index } from "drizzle-orm/pg-core";
+import { examTypeEnum, examLevelEnum, userTypeEnum, userStatusEnum } from "./enums";
 
 // ─── Users Table ──────────────────────────────────────────────────────────────
-// Single combined table serving as:
-//   1. Better Auth's "user" model (id, name, email, emailVerified, image, createdAt, updatedAt)
-//   2. App-specific profile fields (userType, targetExam, state, credits, referral, etc.)
-//
-// IMPORTANT: Better Auth manages id, name, email, emailVerified, image, createdAt, updatedAt.
-// All other columns are managed by our app directly via Drizzle queries.
-// emailVerified MUST be boolean — Better Auth writes boolean true/false to this column.
+// Serves as Better Auth's "user" model + all app-specific profile fields.
+// Better Auth owns: id, name, email, emailVerified, image, createdAt, updatedAt.
+// emailVerified MUST be boolean — Better Auth writes boolean true/false.
 
 export const users = pgTable("users", {
-  // Better Auth core fields — do NOT change column names or types
-  id: text("id").primaryKey(),
-  name: text("name").notNull(),
-  email: text("email").unique().notNull(),
+  // ── Better Auth core — do NOT rename ─────────────────────────────────────
+  id:            text("id").primaryKey(),
+  name:          text("name").notNull(),
+  email:         text("email").unique().notNull(),
   emailVerified: boolean("email_verified").notNull().default(false),
-  image: text("image"),                          // avatar/profile picture URL
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  image:         text("image"),
+  createdAt:     timestamp("created_at").notNull().defaultNow(),
+  updatedAt:     timestamp("updated_at").notNull().defaultNow(),
 
-  // App profile fields — managed directly by our API routes
-  phone: text("phone"),
+  // ── App profile fields ────────────────────────────────────────────────────
+  phone:  text("phone"),
   school: text("school"),
-  state: text("state"),
+  state:  text("state"),
 
-  // Onboarding
-  userType: userTypeEnum("user_type"),
-  targetExam: examTypeEnum("target_exam"),
-  examLevel: examLevelEnum("exam_level"),
+  // ── Onboarding ────────────────────────────────────────────────────────────
+  userType:    userTypeEnum("user_type"),
+  targetExam:  examTypeEnum("target_exam"),
+  examLevel:   examLevelEnum("exam_level"),
   targetScore: integer("target_score"),
-  examDate: date("exam_date"),
+  examDate:    date("exam_date"),
 
-  // Credits & referral
+  // ── Credits & referral ────────────────────────────────────────────────────
   creditBalance: integer("credit_balance").notNull().default(0),
-  referralCode: text("referral_code").unique(),
-  referredBy: text("referred_by"),               // user.id of referrer (text FK, circular)
-});
+  referralCode:  text("referral_code").unique(),
+  // FIX: real FK with set-null on delete (was a soft text reference)
+  referredBy: text("referred_by").references((): any => users.id, { onDelete: "set null" }),
+
+  // ── Account status ────────────────────────────────────────────────────────
+  // Separate from emailVerified: tracks admin-controlled suspension/banning.
+  // Default 'active' so existing users are unaffected on migration.
+  status: userStatusEnum("status").notNull().default("active"),
+
+  // ── Notification preferences (merged from notification_settings table) ────
+  // Eliminates an extra table and a JOIN on every notification send.
+  emailNotifications: boolean("email_notifications").notNull().default(true),
+  pushNotifications:  boolean("push_notifications").notNull().default(true),
+  creditAlerts:       boolean("credit_alerts").notNull().default(true),
+  referralAlerts:     boolean("referral_alerts").notNull().default(true),
+}, (t) => ({
+  // Frequently filtered/sorted columns
+  emailIdx:   index("users_email_idx").on(t.email),
+  createdIdx: index("users_created_idx").on(t.createdAt),
+}));

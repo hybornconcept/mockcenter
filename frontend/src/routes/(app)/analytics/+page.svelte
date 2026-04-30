@@ -10,14 +10,11 @@
 		ShieldAlert,
 		BrainCircuit,
 		AlertCircle,
-	} from "lucide-svelte";
+	} from "@lucide/svelte";
 	import { Badge } from "$lib/components/ui/badge/index.js";
 	import * as Chart from "$lib/components/ui/chart/index.js";
 	import * as Select from "$lib/components/ui/select/index.js";
-	import { AreaChart, Area, ChartClipPath, BarChart } from "layerchart";
-	import { scaleUtc, scaleBand } from "d3-scale";
-	import { curveNatural } from "d3-shape";
-	import { cubicInOut } from "svelte/easing";
+	import { Trendchart, Barchart } from "$lib/components";
 	import { Radials } from "$lib/components/ui/radials/index.js";
 
 	let { data } = $props();
@@ -132,8 +129,6 @@
 	const distChartConfig = {
 		count: { label: "Sessions", color: "var(--color-brand)" },
 	} satisfies Chart.ChartConfig;
-
-	let distContext = $state<import('layerchart').ChartContextValue>();
 </script>
 
 {#snippet circularChart(
@@ -338,73 +333,19 @@
 					</Select.Content>
 				</Select.Root>
 			</div>
-
-			<Chart.Container
+			<Trendchart
 				config={trendChartConfig}
-				class="mt-2 h-[230px] w-full aspect-auto"
-			>
-				<AreaChart
-					data={trendChartData}
-					x="date"
-					xScale={scaleUtc()}
-					series={[
-						{
-							key: "score",
-							label: "Score",
-							color: trendChartConfig.score.color,
-						},
-					]}
-					padding={{ left: 20, right: 10, top: 10, bottom: 20 }}
-					props={{
-						area: {
-							curve: curveNatural,
-							"fill-opacity": 0.4,
-							line: { class: "stroke-2" },
-							motion: "tween",
-						},
-						xAxis: {
-							format: (v: Date) =>
-								v.toLocaleDateString("en-US", {
-									month: "short",
-									day: "numeric",
-								}),
-						},
-						yAxis: { format: (v: number) => `${v}%` },
-					}}
-				>
-					{#snippet marks({ series, getAreaProps })}
-						<defs>
-							<linearGradient id="fillScore" x1="0" y1="0" x2="0" y2="1">
-								<stop
-									offset="5%"
-									stop-color="var(--color-brand)"
-									stop-opacity={0.3}
-								/>
-								<stop
-									offset="95%"
-									stop-color="var(--color-brand)"
-									stop-opacity={0.02}
-								/>
-							</linearGradient>
-						</defs>
-						<ChartClipPath>
-							{#each series as s (s.key)}
-								<Area {...getAreaProps(s, 0)} fill="url(#fillScore)" />
-							{/each}
-						</ChartClipPath>
-					{/snippet}
-					{#snippet tooltip()}
-						<Chart.Tooltip
-							labelFormatter={(v: Date) =>
-								v.toLocaleDateString("en-US", {
-									month: "long",
-									day: "numeric",
-								})}
-							indicator="line"
-						/>
-					{/snippet}
-				</AreaChart>
-			</Chart.Container>
+				data={trendChartData}
+				x="date"
+				series={[
+					{
+						key: "score",
+						label: "Score",
+						color: trendChartConfig.score.color,
+					},
+				]}
+				class="h-[230px]"
+			/>
 		</div>
 
 		<!-- Subject Balance — Custom SVG Radar (reliable per-subject tooltip) -->
@@ -709,37 +650,19 @@
 					</Select.Content>
 				</Select.Root>
 			</div>
-			<Chart.Container config={distChartConfig} class="mt-2 h-[220px] w-full aspect-auto -mb-1">
-				<BarChart
-					bind:context={distContext}
-					data={distChartData}
-					xScale={scaleBand().padding(0.3)}
-					x="range"
-					axis="x"
-					padding={{ top: 10, bottom: 20, left: 0, right: 0 }}
-					series={[{ key: "count", label: "Sessions", color: distChartConfig.count.color }]}
-					rule={false}
-					props={{
-						bars: {
-							stroke: "none",
-							strokeWidth: 0,
-							rounded: "all",
-							initialY: distContext?.height,
-							initialHeight: 0,
-							motion: {
-								y: { type: "tween", duration: 500, easing: cubicInOut },
-								height: { type: "tween", duration: 500, easing: cubicInOut },
-							},
-						},
-						highlight: { area: { fill: "none" } },
-						xAxis: { format: (d: string) => d, tickPadding: 8 },
-					}}
-				>
-					{#snippet tooltip()}
-						<Chart.Tooltip indicator="dashed" />
-					{/snippet}
-				</BarChart>
-			</Chart.Container>
+			<Barchart
+				config={distChartConfig}
+				data={distChartData}
+				x="range"
+				series={[
+					{
+						key: "count",
+						label: "Sessions",
+						color: distChartConfig.count.color,
+					},
+				]}
+				class="h-[220px]"
+			/>
 		</div>
 
 		<!-- Peer Comparison -->

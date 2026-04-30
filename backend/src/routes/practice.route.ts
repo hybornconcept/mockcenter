@@ -5,10 +5,10 @@ import { createDb } from "../db";
 import { practiceSessions, practiceAnswers, questions, exams, subjects } from "../db/schema";
 import { requireAuth } from "../middleware/auth.middleware";
 import { QuestionService } from "../services/question.service";
-import type { Env } from "../env";
+import type { Env, Variables } from "../env";
 import { eq, and, inArray } from "drizzle-orm";
 
-const practice = new Hono<{ Bindings: Env }>();
+const practice = new Hono<{ Bindings: Env; Variables: Variables }>();
 
 const startSessionSchema = z.object({
   examId: z.string().uuid(),
@@ -28,7 +28,7 @@ practice.use("*", requireAuth);
 // Start a new practice session
 practice.post("/start", zValidator("json", startSessionSchema), async (c) => {
   const { examId, subjectIds, totalQuestions } = c.req.valid("json");
-  const user = c.get("user" as any);
+  const user = c.get("user");
   const db = createDb(c.env);
   const questionService = new QuestionService(db);
 
@@ -232,7 +232,6 @@ practice.get("/:id/results", async (c) => {
         where: inArray(questions.id, storedIds),
         with: {
           options: { columns: { id: true, label: true, body: true, isCorrect: true } },
-          explanation: true,
         },
       })
     : [];
@@ -251,7 +250,7 @@ practice.get("/:id/results", async (c) => {
       selectedOptionId: ans?.selectedOptionId || null,
       isCorrect: ans?.isCorrect || false,
       correctOptionId: correctOption?.id || ans?.correctOptionId,
-      explanation: q.explanation?.body || null,
+      explanation: q.explanationBody || null,
     };
   });
 
@@ -284,7 +283,7 @@ practice.post("/:id/redemption", async (c) => {
   const id = c.req.param("id");
   const db = createDb(c.env);
   const questionService = new QuestionService(db);
-  const user = c.get("user" as any);
+  const user = c.get("user");
 
   const session = await db.query.practiceSessions.findFirst({
     where: eq(practiceSessions.id, id),

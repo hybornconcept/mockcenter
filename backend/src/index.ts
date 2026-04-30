@@ -7,6 +7,7 @@ import authRoute from "./routes/auth.route";
 import usersRoute from "./routes/users.route";
 import practiceRoute from "./routes/practice.route";
 import imagesRoute from "./routes/images.route";
+import adminRoute from "./routes/admin.route";
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -48,6 +49,7 @@ app.route("/api/auth", authRoute);
 // Protected API routes
 app.route("/api/users", usersRoute);
 app.route("/api/practice", practiceRoute);
+app.route("/api/admin", adminRoute);
 
 // Public Image route
 app.route("/images", imagesRoute);

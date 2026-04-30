@@ -15,6 +15,20 @@
       "when": 1775500049920,
       "tag": "0001_minor_dreaming_celestial",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1776818917750,
+      "tag": "0002_ambitious_the_hunter",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1777196570543,
+      "tag": "0003_add_status_audit_settings",
+      "breakpoints": true
     }
   ]
 }

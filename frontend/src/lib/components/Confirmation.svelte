@@ -25,7 +25,7 @@
 			<!-- Icon Circle -->
 			{#if Icon}
 				<div class="w-16 h-16 {iconBgClass} rounded-full flex items-center justify-center mb-6 {iconColorClass}">
-					<Icon class="w-8 h-8" strokeWidth={1.5} />
+					<Icon class="w-8 h-8" strokeWidth={1} />
 				</div>
 			{/if}
 

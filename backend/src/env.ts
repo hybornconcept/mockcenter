@@ -29,12 +29,22 @@ const envSchema = z.object({
   PAYSTACK_SECRET_KEY: z.string().optional(),
   PAYSTACK_PUBLIC_KEY: z.string().optional(),
   PAYSTACK_WEBHOOK_SECRET: z.string().optional(),
+
+  // Admin access — comma-separated email allowlist for requireAdmin middleware
+  // Example: "alice@example.com,bob@example.com"
+  ADMIN_EMAILS: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema> & {
   // Cloudflare Hyperdrive binding — only present in production Cloudflare Workers runtime
   HYPERDRIVE?: { connectionString: string };
   QUESTION_IMAGES?: R2Bucket;
+};
+
+/** Variables injected by requireAuth / requireAdmin middleware */
+export type Variables = {
+  user:    Record<string, any>;
+  session: Record<string, any>;
 };
 
 export function validateEnv(env: unknown): Env {

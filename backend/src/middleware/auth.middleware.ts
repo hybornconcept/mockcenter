@@ -1,6 +1,6 @@
 import type { MiddlewareHandler } from "hono";
 import { createAuth } from "../lib/auth";
-import type { Env } from "../env";
+import type { Env, Variables } from "../env";
 
 /**
  * requireAuth — Hono middleware that validates a Better Auth session.
@@ -14,7 +14,7 @@ import type { Env } from "../env";
  *     ...
  *   });
  */
-export const requireAuth: MiddlewareHandler<{ Bindings: Env }> = async (c, next) => {
+export const requireAuth: MiddlewareHandler<{ Bindings: Env; Variables: Variables }> = async (c, next) => {
   let session: Awaited<ReturnType<ReturnType<typeof createAuth>["api"]["getSession"]>>;
 
   try {
@@ -36,8 +36,8 @@ export const requireAuth: MiddlewareHandler<{ Bindings: Env }> = async (c, next)
   }
 
   // Make user + session available to all subsequent handlers in this route
-  c.set("user" as any, session.user);
-  c.set("session" as any, session.session);
+  c.set("user", session.user);
+  c.set("session", session.session);
 
   return next();
 };

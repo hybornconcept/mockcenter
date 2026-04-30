@@ -5,9 +5,9 @@ import { createDb } from "../db";
 import { users } from "../db/schema";
 import { requireAuth } from "../middleware/auth.middleware";
 import { onboardingSchema } from "../validators/onboarding.validator";
-import type { Env } from "../env";
+import type { Env, Variables } from "../env";
 
-const usersRoute = new Hono<{ Bindings: Env }>();
+const usersRoute = new Hono<{ Bindings: Env; Variables: Variables }>();
 
 // ─── GET /api/users/me ────────────────────────────────────────────────────────
 // Returns the full user profile for the currently authenticated user.
@@ -15,7 +15,7 @@ const usersRoute = new Hono<{ Bindings: Env }>();
 // the frontend can use strict === "true" checks safely.
 usersRoute.get("/me", requireAuth, async (c) => {
   const db = createDb(c.env);
-  const sessionUser = c.get("user" as any);
+  const sessionUser = c.get("user");
 
   const user = await db.query.users.findFirst({
     where: eq(users.id, sessionUser.id),
@@ -50,7 +50,15 @@ usersRoute.get("/me", requireAuth, async (c) => {
       ? "true"
       : "false";
 
-  return c.json({ success: true, data: { ...user, emailVerified } });
+  // Derive isAdmin from the ADMIN_EMAILS allowlist (same logic as requireAdmin middleware).
+  // Falls back to userType === "admin" when the allowlist is empty.
+  const adminEmails = ((c.env.ADMIN_EMAILS ?? ""))
+    .split(",").map((e) => e.trim().toLowerCase()).filter(Boolean);
+  const isAdmin = adminEmails.length > 0
+    ? adminEmails.includes((user.email ?? "").toLowerCase())
+    : (user.userType as string) === "admin";
+
+  return c.json({ success: true, data: { ...user, emailVerified, isAdmin } });
 });
 
 // ─── PATCH /api/users/onboarding ─────────────────────────────────────────────
@@ -63,7 +71,7 @@ usersRoute.patch(
   zValidator("json", onboardingSchema),
   async (c) => {
     const db = createDb(c.env);
-    const sessionUser = c.get("user" as any);
+    const sessionUser = c.get("user");
     const body = c.req.valid("json");
 
     await db

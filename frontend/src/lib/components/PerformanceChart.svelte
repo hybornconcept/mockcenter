@@ -3,7 +3,7 @@
 	import * as Chart from "$lib/components/ui/chart/index.js";
 	import * as Select from "$lib/components/ui/select/index.js";
 	import { scaleBand } from "d3-scale";
-	import { BarChart, Labels } from "layerchart";
+	import { BarChart, Labels, Highlight } from "layerchart";
 	import { cubicInOut } from "svelte/easing";
 	import { TrendingUp } from "lucide-svelte";
 
@@ -16,8 +16,8 @@
 	}>();
 
 	const chartConfig = {
-		userScore: { label: "Your Score", color: "var(--brand)" },
-		avgScore: { label: "Avg Score", color: "var(--brand-muted)" },
+		userScore: { label: "Your Score", color: "var(--color-brand)" },
+		avgScore: { label: "Avg Score", color: "var(--color-brand-muted)" },
 	} as const;
 </script>
 
@@ -46,7 +46,7 @@
 		</Select.Root>
 	</Card.Header>
 	<Card.Content>
-		<Chart.Container config={chartConfig} class="h-[180px] w-full mt-2">
+		<Chart.Container config={chartConfig} class="h-[162px] w-full mt-2">
 			<BarChart
 				data={subjectPerformance}
 				xScale={scaleBand().padding(0.4)}
@@ -71,11 +71,9 @@
 				props={{
 					bars: {
 						stroke: "none",
-						strokeWidth: 0,
 						rounded: "top",
 						motion: { type: "tween", duration: 500, easing: cubicInOut },
 					},
-					highlight: { area: { fill: "none" } },
 					xAxis: {
 						tickLabelProps: {
 							fill: "#94a3b8",
@@ -93,14 +91,9 @@
 						grid: false,
 					},
 				}}
-				strokeDasharray="3 3"
 			>
-				{#snippet chart()}
-					<Labels
-						position="outside"
-						offset={4}
-						class="text-[9px] font-bold fill-slate-400"
-					/>
+				{#snippet belowMarks()}
+					<Highlight area={{ class: "fill-slate-50/50" }} />
 				{/snippet}
 				{#snippet tooltip()}
 					<Chart.Tooltip indicator="dashed" />

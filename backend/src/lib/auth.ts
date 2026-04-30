@@ -98,7 +98,7 @@ export function createAuth(env: Env) {
 
       // Called after email is successfully verified
       // Awards 20 welcome credits to the newly verified user
-      onEmailVerified: async ({ user }) => {
+      onEmailVerified: async ({ user }: { user: { id: string; name?: string } }) => {
         try {
           // Only award credits once — guard against double-calling
           const existing = await db.query.users.findFirst({

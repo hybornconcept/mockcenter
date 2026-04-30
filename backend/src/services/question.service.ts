@@ -1,6 +1,6 @@
 import { eq, and, inArray, sql } from "drizzle-orm";
 import type { Database } from "../db";
-import { questions, options, practiceSessions, practiceAnswers } from "../db/schema";
+import { questions, options, practiceAnswers } from "../db/schema";
 
 export class QuestionService {
   constructor(private db: Database) {}
@@ -8,22 +8,17 @@ export class QuestionService {
   async getQuestionsForSession(subjectIds: string[], limit: number) {
     const isMock = subjectIds.includes("00000000-0000-0000-0000-000000000000");
     const whereClause = isMock ? undefined : inArray(questions.subjectId, subjectIds);
-    
-    const records = await this.db.query.questions.findMany({
+
+    return this.db.query.questions.findMany({
       where: whereClause,
       with: {
         options: {
-          columns: {
-            id: true,
-            label: true,
-            body: true
-          } // EXCLUDE isCorrect!
-        }
+          columns: { id: true, label: true, body: true }, // EXCLUDE isCorrect
+        },
       },
-      limit: limit,
+      limit,
       orderBy: sql`${questions.createdAt} ASC`,
     });
-    return records;
   }
 
   async getQuestionsByIds(ids: string[]) {
@@ -31,9 +26,7 @@ export class QuestionService {
     const records = await this.db.query.questions.findMany({
       where: inArray(questions.id, ids),
       with: {
-        options: {
-          columns: { id: true, label: true, body: true }
-        }
+        options: { columns: { id: true, label: true, body: true } },
       },
     });
     // Restore original session order
@@ -41,24 +34,10 @@ export class QuestionService {
     return ids.map((id) => map.get(id)).filter(Boolean) as typeof records;
   }
 
-  async getQuestionWithOptions(questionId: string) {
-    const question = await this.db.query.questions.findFirst({
-      where: eq(questions.id, questionId),
-      with: {
-        options: true,
-      },
-    });
-    return question;
-  }
-
   async validateAnswer(questionId: string, selectedOptionId: string) {
     const correctOption = await this.db.query.options.findFirst({
-      where: and(
-        eq(options.questionId, questionId),
-        eq(options.isCorrect, true)
-      ),
+      where: and(eq(options.questionId, questionId), eq(options.isCorrect, true)),
     });
-
     return {
       isCorrect: correctOption?.id === selectedOptionId,
       correctOptionId: correctOption?.id,

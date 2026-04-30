@@ -1,22 +1,36 @@
 import { redirect } from '@sveltejs/kit';
 import type { LayoutServerLoad } from './$types';
 
-export const load: LayoutServerLoad = async ({ fetch, url }) => {
-  const res = await fetch('/api/users/me');
-  const user = res.ok ? (await res.json())?.data : null;
+export const load: LayoutServerLoad = async ({ locals, url }) => {
+  const user = locals.user as any;
 
-  // Don't redirect away from /register — Google users need it for onboarding
+  // Allow /register page to be visited by any user — Google OAuth users land here
+  // to complete onboarding profile in the old flow. New flow sends them to /onboarding.
   if (url.pathname === '/register') {
+    // If the user is already signed in and has completed onboarding, send to dashboard
+    if (user?.targetExam) {
+      throw redirect(302, '/dashboard');
+    }
     return { user };
   }
 
-  // If logged in and fully ready, send to dashboard (backup for hooks)
-  // TEMPORARY: Bypass email verification until domain is configured for Resend
-  const isVerified = true; // user?.emailVerified === 'true' || user?.emailVerified === true;
-  if (user && isVerified && user?.targetExam) {
+  // Defence-in-depth: redirect logged-in users away from auth pages.
+  // Email verification is bypassed until production deployment.
+  if (user) {
+    if ((user as any).isAdmin) {
+      throw redirect(302, '/admin');
+    }
+    // Users who haven't completed onboarding
+    if (!(user as any).targetExam) {
+      // If they're on forgot-password, let them through
+      if (url.pathname.startsWith('/forgot-password')) {
+        return { user };
+      }
+      throw redirect(302, '/onboarding');
+    }
+    // Fully onboarded users → dashboard
     throw redirect(302, '/dashboard');
   }
 
   return { user };
 };
-
