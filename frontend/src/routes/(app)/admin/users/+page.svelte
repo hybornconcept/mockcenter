@@ -92,9 +92,7 @@
 				case "suspended":
 					matchesQuick = u.status === "Suspended";
 					break;
-				case "pending":
-					matchesQuick = u.status === "Pending";
-					break;
+
 				case "premium":
 					matchesQuick = u.plan === "Premium";
 					break;
@@ -123,7 +121,7 @@
 		total: USERS.length,
 		active: USERS.filter((u) => u.status === "Active").length,
 		suspended: USERS.filter((u) => u.status === "Suspended").length,
-		pending: USERS.filter((u) => u.status === "Pending").length,
+
 		totalCredits: USERS.reduce((a, u) => a + u.credits, 0),
 	});
 
@@ -152,14 +150,7 @@
 			subtext: "account restrictions",
 			badgeText: "Review",
 		},
-		{
-			title: "Pending",
-			value: kpi.pending.toLocaleString(),
-			Icon: Clock,
-			colorClass: "text-amber-500",
-			subtext: "awaiting verification",
-			badgeText: "Action",
-		},
+
 		{
 			title: "Total Credits",
 			value:
@@ -485,7 +476,7 @@
 
 <main class="w-full max-w-[1400px] mx-auto pb-6 antialiased">
 	<!-- KPI Row -->
-	<div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
+	<div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-8">
 		{#each kpis as item}
 			<KpiCard
 				title={item.title}
@@ -567,10 +558,7 @@
 											class="text-[12px] font-medium py-2"
 											>Suspended</Select.Item
 										>
-										<Select.Item
-											value="Pending"
-											class="text-[12px] font-medium py-2">Pending</Select.Item
-										>
+
 									</Select.Content>
 								</Select.Root>
 
