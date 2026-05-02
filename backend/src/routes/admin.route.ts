@@ -1,3 +1,4 @@
+// v2
 import { Hono } from "hono";
 import { z } from "zod";
 import { zValidator } from "@hono/zod-validator";
@@ -7,6 +8,7 @@ import {
   users, questions, subjects, exams, options,
   practiceSessions, practiceAnswers, creditTransactions, notifications,
   creditPackages, auditLogs, platformSettings,
+  examTypeEnum,
 } from "../db/schema";
 import { DEFAULT_SETTINGS } from "../db/schema/settings";
 import { requireAdmin } from "../middleware/admin.middleware";
@@ -34,7 +36,7 @@ const admin = new Hono<{ Bindings: Env; Variables: Variables }>();
 // All admin routes require admin role
 admin.use("*", requireAdmin);
 
-// â”€â”€ GET /api/admin/dashboard â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --- GET /api/admin/dashboard ---------------------------------------------------------------------------â”€
 // Powers: admin/+page.svelte (Command Center KPIs, activity feed, health, subject coverage)
 admin.get("/dashboard", async (c) => {
   const db = createDb(c.env);
@@ -134,7 +136,7 @@ admin.get("/dashboard", async (c) => {
   });
 });
 
-// â”€â”€ GET /api/admin/users â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --- GET /api/admin/users ---------------------------------------------------------------------------------â”€
 // Powers: admin/users page â€” paginated user list + KPI stats
 const userListQuery = z.object({
   page: z.coerce.number().min(1).default(1),
@@ -216,7 +218,7 @@ admin.get("/users", zValidator("query", userListQuery), async (c) => {
   });
 });
 
-// â”€â”€ GET /api/admin/users/:id â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --- GET /api/admin/users/:id ---------------------------------------------------------------------------â”€
 admin.get("/users/:id", async (c) => {
   const db = createDb(c.env);
   const id = c.req.param("id");
@@ -250,7 +252,7 @@ admin.get("/users/:id", async (c) => {
   return c.json({ success: true, data: { user, sessions: userSessions, credits: creditHistory } });
 });
 
-// â”€â”€ PATCH /api/admin/users/:id â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --- PATCH /api/admin/users/:id ------------------------------------------------------------------------â”€
 const patchUserSchema = z.object({
   name:          z.string().min(1).optional(),
   phone:         z.string().optional(),
@@ -274,7 +276,7 @@ admin.patch("/users/:id", zValidator("json", patchUserSchema), async (c) => {
   return c.json({ success: true, message: "User updated" });
 });
 
-// â”€â”€ POST /api/admin/users/:id/credits â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --- POST /api/admin/users/:id/credits ------------------------------------------------------------â”€
 // Adjust credits up or down
 const creditAdjSchema = z.object({
   amount: z.number().int(),
@@ -296,7 +298,7 @@ admin.post("/users/:id/credits", zValidator("json", creditAdjSchema), async (c) 
   return c.json({ success: true, message: `Credits adjusted by ${amount}` });
 });
 
-// â”€â”€ DELETE /api/admin/users/:id â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --- DELETE /api/admin/users/:id ------------------------------------------------------------------------
 admin.delete("/users/:id", async (c) => {
   const db = createDb(c.env);
   const id = c.req.param("id");
@@ -306,7 +308,7 @@ admin.delete("/users/:id", async (c) => {
   return c.json({ success: true, message: "User deleted" });
 });
 
-// â”€â”€ GET /api/admin/questions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --- GET /api/admin/questions ---------------------------------------------------------------------------â”€
 // Powers: admin/bank page
 const questionListQuery = z.object({
   page: z.coerce.number().min(1).default(1),
@@ -325,6 +327,8 @@ admin.get("/questions", zValidator("query", questionListQuery), async (c) => {
   const filters: any[] = [];
   if (search) filters.push(ilike(questions.body, `%${search}%`));
   if (year) filters.push(eq(questions.year, year));
+  if (subject) filters.push(eq(subjects.name, subject));
+  if (exam) filters.push(eq(exams.name, exam));
 
   const rows = await db
     .select({
@@ -416,7 +420,7 @@ admin.get("/questions", zValidator("query", questionListQuery), async (c) => {
   return c.json({ success: true, data: { questions: enriched, total, page, limit } });
 });
 
-// â”€â”€ POST /api/admin/questions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --- POST /api/admin/questions ---------------------------------------------------------------------------
 const createQuestionSchema = z.object({
   subjectId: z.string().uuid(),
   examId: z.string().uuid(),
@@ -463,7 +467,7 @@ admin.post("/questions", zValidator("json", createQuestionSchema), async (c) => 
   return c.json({ success: true, data: q }, 201);
 });
 
-// ─── PUT /api/admin/questions/:id ─────────────────────────────────────────────
+// --- PUT /api/admin/questions/:id ---------------------------------------------
 admin.put("/questions/:id", zValidator("json", createQuestionSchema), async (c) => {
   const db = createDb(c.env);
   const id = c.req.param("id");
@@ -497,7 +501,7 @@ admin.put("/questions/:id", zValidator("json", createQuestionSchema), async (c) 
   return c.json({ success: true, data: q });
 });
 
-// â”€â”€ DELETE /api/admin/questions/:id â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --- DELETE /api/admin/questions/:id ---------------------------------------------------------------â”€
 admin.delete("/questions/:id", async (c) => {
   const db = createDb(c.env);
   const id = c.req.param("id");
@@ -505,7 +509,7 @@ admin.delete("/questions/:id", async (c) => {
   return c.json({ success: true, message: "Question deleted" });
 });
 
-// â”€â”€ GET /api/admin/exams â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --- GET /api/admin/exams ---------------------------------------------------------------------------------â”€
 admin.get("/exams", async (c) => {
   const db = createDb(c.env);
   const rows = await db
@@ -523,7 +527,74 @@ admin.get("/exams", async (c) => {
   return c.json({ success: true, data: rows });
 });
 
-// â”€â”€ GET /api/admin/subjects â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --- POST /api/admin/exams ---------------------------------------------------------------------------------â”€
+const createExamSchema = z.object({
+  name: z.string().min(1),
+  type: z.enum(examTypeEnum.enumValues),
+});
+
+admin.post("/exams", zValidator("json", createExamSchema), async (c) => {
+  const db = createDb(c.env);
+  const { name, type } = c.req.valid("json");
+  const adminUser = c.get("user");
+
+  // Case-insensitive check
+  const existing = await db
+    .select()
+    .from(exams)
+    .where(sql`lower(${exams.name}) = lower(${name.trim()})`)
+    .limit(1);
+
+  if (existing.length > 0) {
+    return c.json({ error: `Exam "${existing[0].name}" already exists.` }, 400);
+  }
+
+  const [newExam] = await db.insert(exams).values({ 
+    name: name.trim(), 
+    type 
+  }).returning();
+  
+  await audit(db, adminUser.email, adminUser.id, "create_exam", "exams", newExam.id, { name: newExam.name });
+
+  return c.json({ success: true, data: newExam });
+});
+
+// --- GET /api/admin/exams/deduplicate ---------------------------------------------------------------------
+// Merges exams with same name (case-insensitive)
+admin.get("/exams/deduplicate", async (c) => {
+  const db = createDb(c.env);
+  const allExams = await db.select().from(exams);
+  
+  const groups = new Map<string, typeof allExams>();
+  allExams.forEach(e => {
+    const key = e.name.toLowerCase().trim();
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key)!.push(e);
+  });
+
+  let mergedCount = 0;
+  for (const [key, list] of groups.entries()) {
+    if (list.length > 1) {
+      // Pick master (longest name or first)
+      const master = list.sort((a, b) => b.name.length - a.name.length)[0];
+      const dups = list.filter(e => e.id !== master.id);
+      
+      for (const dup of dups) {
+        // Move questions
+        await db.update(questions).set({ examId: master.id }).where(eq(questions.examId, dup.id));
+        // Move subjects
+        await db.update(subjects).set({ examId: master.id }).where(eq(subjects.examId, dup.id));
+        // Delete dup
+        await db.delete(exams).where(eq(exams.id, dup.id));
+        mergedCount++;
+      }
+    }
+  }
+
+  return c.json({ success: true, merged: mergedCount });
+});
+
+// --- GET /api/admin/subjects ------------------------------------------------──
 admin.get("/subjects", async (c) => {
   const db = createDb(c.env);
   const rows = await db
@@ -543,7 +614,72 @@ admin.get("/subjects", async (c) => {
   return c.json({ success: true, data: rows });
 });
 
-// â”€â”€ GET /api/admin/analytics â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --- GET /api/admin/subjects/deduplicate ---------------------------------------------------------------------
+// Merges subjects with same name (case-insensitive) within same exam
+admin.get("/subjects/deduplicate", async (c) => {
+  const db = createDb(c.env);
+  const allSubjects = await db.select().from(subjects);
+  
+  const groups = new Map<string, typeof allSubjects>();
+  allSubjects.forEach(s => {
+    const key = `${s.examId}-${s.name.toLowerCase().trim()}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key)!.push(s);
+  });
+
+  let mergedCount = 0;
+  for (const [key, list] of groups.entries()) {
+    if (list.length > 1) {
+      // Pick master (first one)
+      const master = list[0];
+      const dups = list.filter(s => s.id !== master.id);
+      
+      for (const dup of dups) {
+        // Move questions
+        await db.update(questions).set({ subjectId: master.id }).where(eq(questions.subjectId, dup.id));
+        // Delete dup
+        await db.delete(subjects).where(eq(subjects.id, dup.id));
+        mergedCount++;
+      }
+    }
+  }
+
+  return c.json({ success: true, merged: mergedCount });
+});
+
+// --- POST /api/admin/subjects ------------------------------------------------------------------------------â”€
+const createSubjectSchema = z.object({
+  name: z.string().min(1),
+  examId: z.string().uuid(),
+});
+
+admin.post("/subjects", zValidator("json", createSubjectSchema), async (c) => {
+  const db = createDb(c.env);
+  const { name, examId } = c.req.valid("json");
+  const adminUser = c.get("user");
+
+  // Case-insensitive check
+  const existing = await db
+    .select()
+    .from(subjects)
+    .where(and(eq(subjects.examId, examId), sql`lower(${subjects.name}) = lower(${name.trim()})`))
+    .limit(1);
+
+  if (existing.length > 0) {
+    return c.json({ error: `Course "${existing[0].name}" already exists for this exam.` }, 400);
+  }
+
+  const [newSub] = await db.insert(subjects).values({ 
+    name: name.trim(), 
+    examId 
+  }).returning();
+  
+  await audit(db, adminUser.email, adminUser.id, "create_subject", "subjects", newSub.id, { name: newSub.name });
+
+  return c.json({ success: true, data: newSub });
+});
+
+// --- GET /api/admin/analytics ---------------------------------------------------------------------------â”€
 // Powers: admin/analytics page â€” platform-wide stats
 const analyticsQuery = z.object({
   days: z.coerce.number().default(30),
@@ -756,7 +892,7 @@ admin.get("/analytics", zValidator("query", analyticsQuery), async (c) => {
   });
 });
 
-// â”€â”€ GET /api/admin/notifications â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --- GET /api/admin/notifications ---------------------------------------------------------------------â”€
 // Powers: admin/notifications page â€” platform-wide notification log
 const notifQuery = z.object({
   page: z.coerce.number().min(1).default(1),
@@ -801,7 +937,7 @@ admin.get("/notifications", zValidator("query", notifQuery), async (c) => {
   return c.json({ success: true, data: { notifications: rows, total, page, limit } });
 });
 
-// ── GET /api/admin/notifications/stats ─────────────────────────────────────────
+// ── GET /api/admin/notifications/stats ---------------------------------------──
 // Powers: delivery stats panel on admin/notifications page
 admin.get("/notifications/stats", async (c) => {
   const db = createDb(c.env);
@@ -836,7 +972,7 @@ admin.get("/notifications/stats", async (c) => {
   });
 });
 
-// â”€â”€ POST /api/admin/notifications/broadcast â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --- POST /api/admin/notifications/broadcast ------------------------------------------------------
 // Send a system notification to all users (or a subset)
 const broadcastSchema = z.object({
   title: z.string().min(1),
@@ -875,7 +1011,7 @@ admin.post("/notifications/broadcast", zValidator("json", broadcastSchema), asyn
   return c.json({ success: true, data: { sent: targets.length } });
 });
 
-// â”€â”€ GET /api/admin/media â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --- GET /api/admin/media ---------------------------------------------------------------------------------â”€
 // Powers: admin/media page â€” list R2 objects with orphan detection
 admin.get("/media", async (c) => {
   const bucket = c.env.QUESTION_IMAGES;
@@ -897,6 +1033,7 @@ admin.get("/media", async (c) => {
     uploadedAt: obj.uploaded,
     etag: obj.etag,
     httpMetadata: obj.httpMetadata,
+    // imageUrl in DB is '/images/<key>' for flat keys or '/images/images/<key>' for legacy
     orphan: !referencedKeys.has(`/images/${obj.key}`) && !referencedKeys.has(obj.key),
   }));
 
@@ -910,7 +1047,7 @@ admin.get("/media", async (c) => {
   });
 });
 
-// â”€â”€ DELETE /api/admin/media/:key â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --- DELETE /api/admin/media/:key ---------------------------------------------------------------------â”€
 admin.delete("/media/:key{.+}", async (c) => {
   const bucket = c.env.QUESTION_IMAGES;
   if (!bucket) return c.json({ success: false, message: "R2 bucket not configured" }, 503);
@@ -920,14 +1057,14 @@ admin.delete("/media/:key{.+}", async (c) => {
   return c.json({ success: true, message: `Deleted ${key}` });
 });
 
-// â”€â”€ GET /api/admin/credits/packages â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --- GET /api/admin/credits/packages ---------------------------------------------------------------â”€
 admin.get("/credits/packages", async (c) => {
   const db = createDb(c.env);
   const packages = await db.select().from(creditPackages).orderBy(creditPackages.credits);
   return c.json({ success: true, data: packages });
 });
 
-// â”€â”€ POST /api/admin/users/:id/suspend â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --- POST /api/admin/users/:id/suspend ------------------------------------------------------------
 // Toggle active â†” suspended without touching emailVerified
 admin.post("/users/:id/suspend", async (c) => {
   const db = createDb(c.env);
@@ -941,7 +1078,7 @@ admin.post("/users/:id/suspend", async (c) => {
   return c.json({ success: true, data: { status: newStatus } });
 });
 
-// â”€â”€ PATCH /api/admin/questions/:id â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --- PATCH /api/admin/questions/:id ---------------------------------------------------------------â”€
 const patchQuestionSchema = z.object({
   body: z.string().min(1).optional(),
   topic: z.string().optional(),
@@ -967,18 +1104,22 @@ admin.patch("/questions/:id", zValidator("json", patchQuestionSchema), async (c)
   return c.json({ success: true, message: "Question updated" });
 });
 
-// â”€â”€ POST /api/admin/questions/import â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --- POST /api/admin/questions/import ------------------------------------------------------------â”€
 // Accepts a pre-parsed JSON array (frontend parses the CSV file)
 const importRowSchema = z.object({
   question: z.string().min(1),
-  opt_a: z.string().optional(), opt_b: z.string().optional(),
-  opt_c: z.string().optional(), opt_d: z.string().optional(),
-  correct: z.string().min(1),
-  subject: z.string().optional(),
-  exam: z.string().optional(),
-  year: z.coerce.number().int().optional(),
-  explanation: z.string().optional(),
-  credit_cost: z.coerce.number().int().min(1).default(1),
+  // Allow empty strings for options (non-MCQ rows won't have them)
+  opt_a: z.string().optional().transform(v => v || undefined),
+  opt_b: z.string().optional().transform(v => v || undefined),
+  opt_c: z.string().optional().transform(v => v || undefined),
+  opt_d: z.string().optional().transform(v => v || undefined),
+  // correct can be empty for theory questions
+  correct: z.string().optional().default(""),
+  subject: z.string().optional().transform(v => v || undefined),
+  exam:    z.string().optional().transform(v => v || undefined),
+  year: z.coerce.number().int().optional().catch(undefined),
+  explanation: z.string().optional().transform(v => v || undefined),
+  credit_cost: z.coerce.number().int().min(1).default(1).catch(1),
 });
 
 const importSchema = z.object({
@@ -1007,7 +1148,18 @@ admin.post("/questions/import", zValidator("json", importSchema), async (c) => {
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i];
     try {
-      const subjectId = (row.subject ? subjectMap.get(row.subject.toLowerCase()) : null) ?? defaultSubjectId;
+      let subjectId = row.subject ? subjectMap.get(row.subject.toLowerCase()) : null;
+      if (row.subject && !subjectId) {
+        // Auto-create subject if missing
+        const [newSub] = await db.insert(subjects).values({ 
+          name: row.subject.trim(), 
+          examId: defaultExamId 
+        }).returning();
+        subjectId = newSub.id;
+        subjectMap.set(row.subject.toLowerCase(), subjectId);
+      }
+      subjectId = subjectId ?? defaultSubjectId;
+
       const examId = (row.exam ? examMap.get(row.exam.toLowerCase()) : null) ?? defaultExamId;
       const [q] = await db.insert(questions).values({
         subjectId, examId, body: row.question,
@@ -1029,7 +1181,7 @@ admin.post("/questions/import", zValidator("json", importSchema), async (c) => {
   return c.json({ success: true, data: { inserted, errors } });
 });
 
-// â”€â”€ PATCH /api/admin/notifications/:id â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --- PATCH /api/admin/notifications/:id ---------------------------------------------------------â”€
 admin.patch("/notifications/:id", async (c) => {
   const db = createDb(c.env);
   const id = c.req.param("id");
@@ -1041,7 +1193,7 @@ admin.patch("/notifications/:id", async (c) => {
   return c.json({ success: true });
 });
 
-// â”€â”€ DELETE /api/admin/notifications/:id â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --- DELETE /api/admin/notifications/:id ---------------------------------------------------------
 admin.delete("/notifications/:id", async (c) => {
   const db = createDb(c.env);
   const id = c.req.param("id");
@@ -1049,8 +1201,9 @@ admin.delete("/notifications/:id", async (c) => {
   return c.json({ success: true });
 });
 
-// â”€â”€ POST /api/admin/media â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// Direct upload to R2 via multipart/form-data
+// --- POST /api/admin/media ------------------------------------------------------------------------------â”€
+// Direct upload to R2 via multipart/form-data.
+// Preserves original filename so naming conventions (e.g. <questionId>.jpg) work.
 admin.post("/media", async (c) => {
   const bucket = c.env.QUESTION_IMAGES;
   if (!bucket) return c.json({ success: false, message: "R2 bucket not configured" }, 503);
@@ -1064,7 +1217,11 @@ admin.post("/media", async (c) => {
   if (!allowed.includes(ext)) return c.json({ success: false, message: `File type .${ext} not allowed` }, 400);
   if (file.size > 5 * 1024 * 1024) return c.json({ success: false, message: "File exceeds 5 MB limit" }, 400);
 
-  const key = `images/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
+  // Store the file under just the safe filename (no folder prefix).
+  // The /images/:path route resolves it correctly from R2.
+  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+  const key = safeName; // R2 key: just the filename
+
   await bucket.put(key, await file.arrayBuffer(), { httpMetadata: { contentType: file.type } });
 
   const adminUser = c.get("user");
@@ -1074,7 +1231,169 @@ admin.post("/media", async (c) => {
   return c.json({ success: true, data: { key, url: `/images/${key}`, size: file.size } }, 201);
 });
 
-// â”€â”€ DELETE /api/admin/media/orphans â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --- DELETE /api/admin/media/:key -----------------------------------------------------------------------
+// Delete a specific image from R2 by its key
+admin.delete("/media/:key", async (c) => {
+  const bucket = c.env.QUESTION_IMAGES;
+  if (!bucket) return c.json({ success: false, message: "R2 bucket not configured" }, 503);
+
+  const key = c.req.param("key");
+  const db = createDb(c.env);
+  const adminUser = c.get("user");
+
+  await bucket.delete(key);
+  await audit(db, adminUser.email, adminUser.id, "media.delete", "media", key);
+
+  return c.json({ success: true, data: { deleted: true } });
+});
+
+// --- POST /api/admin/media/sync -------------------------------------------------------------------------
+// Parses filenames using the convention:
+//   {Subject}_{Exam}_{Year}_{number_words...}.ext
+// Examples:
+//   Physics_jamb_2000_thirty_three.png  -> Physics, JAMB, 2000, question #33
+//   biology_jamb_2010_six_seven.png     -> Biology, JAMB, 2010, questions #6 AND #7
+//
+// Number-word rules:
+//   - A "tens" word immediately followed by a "units" word = compound number (thirty_three = 33)
+//   - Any other sequence of number words = separate question positions (six_seven = 6, 7)
+admin.post("/media/sync", async (c) => {
+  const bucket = c.env.QUESTION_IMAGES;
+  if (!bucket) return c.json({ success: false, message: "R2 bucket not configured" }, 503);
+
+  const db = createDb(c.env);
+  const adminUser = c.get("user");
+
+  // ── Number-word helpers ────────────────────────────────────────────────────
+  const wordToNum: Record<string, number> = {
+    zero: 0, one: 1, two: 2, three: 3, four: 4, five: 5,
+    six: 6, seven: 7, eight: 8, nine: 9, ten: 10,
+    eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15,
+    sixteen: 16, seventeen: 17, eighteen: 18, nineteen: 19,
+    twenty: 20, thirty: 30, forty: 40, fourty: 40, fifty: 50, // "fourty" alias
+    sixty: 60, seventy: 70, eighty: 80, ninety: 90,
+  };
+  const tensEntries: [string, number][] = [
+    ["twenty",20],["thirty",30],["forty",40],["fourty",40],
+    ["fifty",50],["sixty",60],["seventy",70],["eighty",80],["ninety",90],
+  ];
+  const unitEntries: [string, number][] = [
+    ["one",1],["two",2],["three",3],["four",4],["five",5],
+    ["six",6],["seven",7],["eight",8],["nine",9],
+  ];
+  const tensSet  = new Set(tensEntries.map(([w]) => w));
+  const unitsSet = new Set(unitEntries.map(([w]) => w));
+
+  // Pre-built map for fused compound words like "fourtytwo" (no underscore)
+  // Covers correct spellings and the common "fourty" misspelling.
+  const fusedMap: Record<string, number> = {};
+  for (const [t, tv] of tensEntries) {
+    for (const [u, uv] of unitEntries) {
+      fusedMap[t + u] = tv + uv; // e.g. "fourtytwo" → 42
+    }
+  }
+
+  function parseQuestionNumbers(tokens: string[]): number[] {
+    const out: number[] = [];
+    let i = 0;
+    while (i < tokens.length) {
+      const t = tokens[i].toLowerCase();
+      // Skip separator words like 'and'
+      if (t === "and") { i++; continue; }
+      // Fused compound first: "fourtytwo", "twentyone", etc.
+      if (fusedMap[t] !== undefined) { out.push(fusedMap[t]); i++; continue; }
+      if (wordToNum[t] === undefined) { i++; continue; }
+      // Split compound: tens word followed (possibly over 'and') by a units word
+      // e.g. thirty_three = 33, fourty_five = 45
+      let nextIdx = i + 1;
+      while (nextIdx < tokens.length && tokens[nextIdx].toLowerCase() === "and") nextIdx++;
+      if (tensSet.has(t) && nextIdx < tokens.length && unitsSet.has(tokens[nextIdx].toLowerCase())) {
+        out.push(wordToNum[t] + wordToNum[tokens[nextIdx].toLowerCase()]);
+        i = nextIdx + 1;
+      } else {
+        out.push(wordToNum[t]);
+        i++;
+      }
+    }
+    return out;
+  }
+
+  function parseFilename(stem: string): { subject: string; exam: string; year: number; positions: number[] } | null {
+    // Split on underscore; stem already has no extension
+    const parts = stem.split("_");
+    // Find the first 4-digit year token
+    const yearIdx = parts.findIndex((p) => /^\d{4}$/.test(p));
+    if (yearIdx < 2) return null; // Need at least subject + exam before year
+    const subject   = parts.slice(0, yearIdx - 1).join(" "); // everything before exam
+    const exam      = parts[yearIdx - 1];                    // token just before year
+    const year      = Number(parts[yearIdx]);
+    const numTokens = parts.slice(yearIdx + 1);
+    const positions = parseQuestionNumbers(numTokens);
+    if (positions.length === 0) return null;
+    return { subject, exam, year, positions };
+  }
+
+  // ── Main sync loop ─────────────────────────────────────────────────────────
+  const listed = await bucket.list();
+
+  let linked = 0;
+  let alreadyLinked = 0;
+  let unmatched = 0;
+  const errors: string[] = [];
+
+  for (const obj of listed.objects) {
+    const filename = obj.key.split("/").pop() ?? obj.key;
+    const stem = filename.replace(/\.[^.]+$/, ""); // strip extension
+    const parsed = parseFilename(stem);
+
+    if (!parsed) { unmatched++; continue; }
+
+    const { subject, exam, year, positions } = parsed;
+    const imageUrl = `/images/${obj.key}`;
+
+    // Fetch all questions for this subject + exam + year, ordered consistently
+    const matchingQs = await db
+      .select({ id: questions.id, imageUrl: questions.imageUrl })
+      .from(questions)
+      .leftJoin(subjects, eq(questions.subjectId, subjects.id))
+      .leftJoin(exams,    eq(questions.examId, exams.id))
+      .where(
+        and(
+          sql`lower(${subjects.name}) = lower(${subject.trim()})`,
+          sql`lower(${exams.name}) = lower(${exam.trim()})`,
+          eq(questions.year, year),
+        )
+      )
+      .orderBy(questions.createdAt);
+
+    if (matchingQs.length === 0) {
+      errors.push(`No questions found for ${subject}/${exam}/${year}`);
+      unmatched++;
+      continue;
+    }
+
+    let anyLinked = false;
+    for (const pos of positions) {
+      const q = matchingQs[pos - 1]; // 1-based → 0-based index
+      if (!q) {
+        errors.push(`${stem}: position #${pos} out of range (only ${matchingQs.length} questions)`);
+        continue;
+      }
+      if (q.imageUrl === imageUrl) { alreadyLinked++; continue; }
+      await db.update(questions).set({ imageUrl }).where(eq(questions.id, q.id));
+      linked++;
+      anyLinked = true;
+    }
+    if (!anyLinked && positions.every((p) => matchingQs[p - 1]?.imageUrl === imageUrl)) {
+      // all were already linked — counted above
+    }
+  }
+
+  await audit(db, adminUser.email, adminUser.id, "media.sync", undefined, undefined, { linked, alreadyLinked, unmatched, errors: errors.length });
+  return c.json({ success: true, data: { linked, alreadyLinked, unmatched, errors } });
+});
+
+// --- DELETE /api/admin/media/orphans ---------------------------------------------------------------
 // Bulk-delete all R2 objects not referenced by any question
 admin.delete("/media/orphans", async (c) => {
   const bucket = c.env.QUESTION_IMAGES;
@@ -1095,7 +1414,26 @@ admin.delete("/media/orphans", async (c) => {
   return c.json({ success: true, data: { deleted: orphans.length } });
 });
 
-// â”€â”€ GET /api/admin/settings â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --- DELETE /api/admin/media/all -------------------------------------------------------------------
+// Wipe every image from the R2 bucket and clear imageUrl on all questions.
+admin.delete("/media/all", async (c) => {
+  const bucket = c.env.QUESTION_IMAGES;
+  if (!bucket) return c.json({ success: false, message: "R2 bucket not configured" }, 503);
+
+  const db = createDb(c.env);
+  const adminUser = c.get("user");
+
+  const listed = await bucket.list();
+  await Promise.all(listed.objects.map((obj) => bucket.delete(obj.key)));
+
+  // Clear imageUrl from all questions so the bank doesn't show broken links
+  await db.update(questions).set({ imageUrl: null });
+
+  await audit(db, adminUser.email, adminUser.id, "media.clear_all", undefined, undefined, { deleted: listed.objects.length });
+  return c.json({ success: true, data: { deleted: listed.objects.length } });
+});
+
+// --- GET /api/admin/settings ---------------------------------------------------------------------------â”€
 admin.get("/settings", async (c) => {
   const db = createDb(c.env);
   const rows = await db.select().from(platformSettings);
@@ -1117,7 +1455,7 @@ admin.get("/settings", async (c) => {
   return c.json({ success: true, data: result });
 });
 
-// â”€â”€ PATCH /api/admin/settings â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --- PATCH /api/admin/settings ------------------------------------------------------------------------â”€
 const settingsSchema = z.object({
   key: z.string().min(1),
   value: z.unknown(),
@@ -1140,7 +1478,7 @@ admin.patch("/settings", zValidator("json", settingsSchema), async (c) => {
   return c.json({ success: true });
 });
 
-// â”€â”€ POST /api/admin/credits/packages â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --- POST /api/admin/credits/packages ------------------------------------------------------------â”€
 const packageSchema = z.object({
   name: z.string().min(1),
   credits: z.number().int().min(1),

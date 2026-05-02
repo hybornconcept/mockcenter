@@ -77,6 +77,24 @@ export const actions: Actions = {
   deleteOrphans: async ({ fetch }) => {
     const result = await adminFetch<{ deleted: number }>(fetch, '/media/orphans', { method: 'DELETE' });
     if (!result.ok) return fail(500, { error: result.error });
-    return { success: true, deleted: result.data.deleted };
+    return { success: true, deleted: result.data?.deleted ?? 0 };
+  },
+
+  /** Scan all R2 images and auto-link to questions by filename convention */
+  syncMedia: async ({ fetch }) => {
+    const result = await adminFetch<{ linked: number; alreadyLinked: number; unmatched: number; errors: string[] }>(
+      fetch, '/media/sync', { method: 'POST' }
+    );
+    if (!result.ok) return fail(500, { error: result.error });
+    return { success: true, ...(result.data ?? {}) };
+  },
+
+  /** Wipe every image from R2 and clear imageUrl on all questions */
+  clearAllMedia: async ({ fetch }) => {
+    const result = await adminFetch<{ deleted: number }>(
+      fetch, '/media/all', { method: 'DELETE' }
+    );
+    if (!result.ok) return fail(500, { error: result.error });
+    return { success: true, deleted: result.data?.deleted ?? 0 };
   },
 };

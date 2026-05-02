@@ -27,6 +27,8 @@
 	import { quintOut } from "svelte/easing";
 	import Empty from "$lib/components/Empty.svelte";
 	import { KpiCard } from "$lib/components";
+	import Confirmation from "$lib/components/Confirmation.svelte";
+	import { enhance } from '$app/forms';
 
 	let { data } = $props();
 
@@ -52,7 +54,31 @@
 	let attachSearch = $state("");
 
 	let isUploading = $state(false);
+	let isSyncing = $state(false);
+	let isClearingAll = $state(false);
 	let uploadQueue = $state<any[]>([]);
+	let uploadFormEl = $state<HTMLFormElement | null>(null);
+
+	// --- Confirmation modal shared state ---
+	let confirmOpen = $state(false);
+	let confirmState = $state<{
+		title: string;
+		description: string;
+		confirmText: string;
+		confirmBtnClass: string;
+		onConfirm: () => void;
+	}>({
+		title: '',
+		description: '',
+		confirmText: 'Confirm',
+		confirmBtnClass: 'bg-[#e44d4d] hover:bg-[#d43d3d] shadow-lg shadow-red-500/20 text-white',
+		onConfirm: () => {},
+	});
+
+	function openConfirm(opts: typeof confirmState) {
+		confirmState = opts;
+		confirmOpen = true;
+	}
 
 	// --- Derived State ---
 	const filteredMedia = $derived(
@@ -194,21 +220,135 @@
 		selectedIds = new Set(selectedIds);
 	}
 
-	function deleteMedia(ids: number[]) {
-		media = media.filter((m) => !ids.includes(m.id));
-		selectedIds = new Set([...selectedIds].filter((id) => !ids.includes(id)));
-		if (activeDetailId && ids.includes(activeDetailId)) activeDetailId = null;
-		toast.success(`${ids.length} image(s) deleted from R2`);
+	async function deleteMedia(ids: number[]) {
+		const toDelete = media.filter((m) => ids.includes(m.id));
+		let deletedCount = 0;
+
+		for (const item of toDelete) {
+			try {
+				const res = await fetch(`/api/admin/media/${encodeURIComponent(item.key)}`, {
+					method: 'DELETE',
+					credentials: 'include',
+				});
+				const json = await res.json();
+				if (!res.ok || !json?.success) {
+					toast.error(`Failed to delete ${item.name}`);
+					continue;
+				}
+				deletedCount++;
+			} catch {
+				toast.error(`Network error deleting ${item.name}`);
+			}
+		}
+
+		if (deletedCount > 0) {
+			// Remove only successfully deleted items from local state
+			const deletedIds = toDelete.slice(0, deletedCount).map((m) => m.id);
+			media = media.filter((m) => !deletedIds.includes(m.id));
+			selectedIds = new Set([...selectedIds].filter((id) => !deletedIds.includes(id)));
+			if (activeDetailId && deletedIds.includes(activeDetailId)) activeDetailId = null;
+			toast.success(`${deletedCount} image${deletedCount !== 1 ? 's' : ''} deleted from R2 ✓`);
+		}
 	}
 
-	function deleteOrphans() {
-		const orphans = media.filter((m) => m.orphan).map((m) => m.id);
-		deleteMedia(orphans);
+	async function deleteOrphans() {
+		try {
+			const res = await fetch('/api/admin/media/orphans', {
+				method: 'DELETE',
+				credentials: 'include',
+			});
+			const json = await res.json();
+			if (!res.ok || !json?.success) {
+				toast.error(json?.message ?? json?.error?.message ?? 'Failed to delete orphans');
+				return;
+			}
+			// Remove all orphans from local state
+			media = media.filter((m) => !m.orphan);
+			toast.success(`Orphaned images cleared ✓`);
+		} catch {
+			toast.error('Network error while deleting orphans');
+		}
 	}
 
-	function syncR2() {
-		toast.info("Syncing with Cloudflare R2...");
-		setTimeout(() => toast.success("R2 sync complete"), 1500);
+	function promptDeleteOrphans() {
+		openConfirm({
+			title: 'Delete Orphaned Images?',
+			description: 'This will permanently remove all images not linked to any question from the R2 bucket. This cannot be undone.',
+			confirmText: 'Delete Orphans',
+			confirmBtnClass: 'bg-rose-500 hover:bg-rose-600 shadow-lg shadow-rose-500/20 text-white',
+			onConfirm: deleteOrphans,
+		});
+	}
+
+	function promptClearAll() {
+		openConfirm({
+			title: 'Clear All Images?',
+			description: 'This will permanently delete every image from the R2 bucket and unlink them from all questions. This cannot be undone.',
+			confirmText: 'Yes, Clear Everything',
+			confirmBtnClass: 'bg-slate-800 hover:bg-slate-900 shadow-lg shadow-slate-500/20 text-white',
+			onConfirm: clearAllImages,
+		});
+	}
+
+	function promptSyncToQuestions() {
+		openConfirm({
+			title: 'Sync Images to Questions?',
+			description: 'This will scan all R2 images and auto-link each one to its matching question by filename. Existing links may be overwritten.',
+			confirmText: 'Sync Now',
+			confirmBtnClass: 'bg-indigo-500 hover:bg-indigo-600 shadow-lg shadow-indigo-500/20 text-white',
+			onConfirm: syncToQuestions,
+		});
+	}
+
+	async function syncToQuestions() {
+		isSyncing = true;
+		try {
+			const res = await fetch('/api/admin/media/sync', {
+				method: 'POST',
+				credentials: 'include',
+			});
+			const json = await res.json();
+			if (!res.ok || !json?.success) {
+				toast.error(json?.message ?? json?.error?.message ?? 'Sync failed');
+			} else {
+				const d = json.data;
+				const linked = d?.linked ?? 0;
+				const unmatched = d?.unmatched ?? 0;
+				if (linked > 0) {
+					toast.success(`✓ ${linked} question${linked !== 1 ? 's' : ''} linked to images. ${unmatched} images unmatched.`);
+				} else {
+					toast.info(`No new links created. ${unmatched} images still unmatched.`);
+				}
+				// Refresh page data to reflect new image_url links
+				window.location.reload();
+			}
+		} catch (e) {
+			toast.error('Network error during sync');
+		} finally {
+			isSyncing = false;
+		}
+	}
+
+	async function clearAllImages() {
+		isClearingAll = true;
+		try {
+			const res = await fetch('/api/admin/media/all', {
+				method: 'DELETE',
+				credentials: 'include',
+			});
+			const json = await res.json();
+			if (!res.ok || !json?.success) {
+				toast.error(json?.message ?? json?.error?.message ?? 'Clear failed');
+			} else {
+				const deleted = json?.data?.deleted ?? 0;
+				toast.success(`✓ ${deleted} image${deleted !== 1 ? 's' : ''} cleared from R2.`);
+				media = [];
+			}
+		} catch (e) {
+			toast.error('Network error during clear');
+		} finally {
+			isClearingAll = false;
+		}
 	}
 
 	function openAttach(id: number) {
@@ -234,33 +374,53 @@
 	}
 
 	function handleFileUpload(files: FileList | null) {
-		if (!files) return;
-		isUploading = true;
-		Array.from(files).forEach((file) => {
-			const id = Math.max(...media.map((m) => m.id), 0) + 1;
-			const newFile = {
-				id,
-				key: `images/${file.name}`,
-				name: file.name,
-				url: URL.createObjectURL(file),
-				size: file.size,
-				type: file.name.split(".").pop() || "img",
-				subject: null,
-				attachedTo: [],
-				uploadedAt: new Date(),
-				orphan: true,
-			};
-			uploadQueue = [...uploadQueue, { id, name: file.name, progress: 0 }];
-			setTimeout(() => {
-				uploadQueue = uploadQueue.map((u) =>
-					u.id === id ? { ...u, progress: 100 } : u,
-				);
-				media = [newFile, ...media];
-				setTimeout(() => {
-					uploadQueue = uploadQueue.filter((u) => u.id !== id);
+		if (!files || files.length === 0) return;
+		const fileArr = Array.from(files);
+
+		fileArr.forEach((file) => {
+			const tmpId = Date.now() + Math.random();
+			uploadQueue = [...uploadQueue, { id: tmpId, name: file.name, progress: 0 }];
+			isUploading = true;
+
+			const fd = new FormData();
+			fd.append('file', file, file.name);
+
+			// Call the backend API directly — SvelteKit form action responses use
+			// devalue serialization (not plain JSON) so we bypass the action layer.
+			fetch('/api/admin/media', {
+				method: 'POST',
+				body: fd,
+				credentials: 'include',
+			})
+				.then((res) => res.json())
+				.then((json) => {
+					if (!json?.success || !json?.data?.key) {
+						throw new Error(json?.message ?? json?.error?.message ?? 'Upload failed');
+					}
+					const d = json.data;
+					const newItem = {
+						id: tmpId,
+						key: d.key,
+						name: file.name,
+						url: d.url,
+						size: d.size ?? file.size,
+						type: file.name.split('.').pop() || 'img',
+						subject: null,
+						attachedTo: [],
+						uploadedAt: new Date(),
+						orphan: true,
+					};
+					media = [newItem, ...media];
+					uploadQueue = uploadQueue.filter((u) => u.id !== tmpId);
+					toast.success(`${file.name} uploaded to R2 ✓`);
+				})
+				.catch((err) => {
+					uploadQueue = uploadQueue.filter((u) => u.id !== tmpId);
+					toast.error(`Failed to upload ${file.name}: ${err.message}`);
+				})
+				.finally(() => {
 					if (uploadQueue.length === 0) isUploading = false;
-				}, 1000);
-			}, 1500);
+				});
 		});
 	}
 </script>
@@ -463,8 +623,8 @@
 		{#if media.some((m) => m.orphan)}
 			<Button
 				variant="outline"
-				class="h-10 px-4 text-[12px] font-bold text-white bg-rose-500 hover:bg-rose-600 border-none shadow-md shadow-rose-100 rounded-xl"
-				onclick={deleteOrphans}
+				class="h-9 px-3.5 text-[11px] font-bold text-white bg-rose-500 hover:bg-rose-600 border-none shadow-md shadow-rose-100 rounded-xl"
+				onclick={promptDeleteOrphans}
 			>
 				<Trash2 class="w-3.5 h-3.5 mr-2" />
 				Delete Orphans
@@ -472,11 +632,27 @@
 		{/if}
 		<Button
 			variant="outline"
-			class="h-10 px-4 text-[12px] font-bold text-slate-700 bg-white border-slate-200 hover:bg-slate-50 shadow-sm rounded-xl"
-			onclick={syncR2}
+			class="h-9 px-3.5 text-[11px] font-bold bg-slate-700 hover:bg-slate-800 text-white border-none shadow-md shadow-slate-200 rounded-xl disabled:opacity-60"
+			onclick={promptClearAll}
+			disabled={isClearingAll}
 		>
-			<RefreshCw class="w-3.5 h-3.5 mr-2" />
-			Sync R2
+			{#if isClearingAll}
+				<RefreshCw class="w-3.5 h-3.5 mr-2 animate-spin" /> Clearing...
+			{:else}
+				<Trash2 class="w-3.5 h-3.5 mr-2" /> Clear All Images
+			{/if}
+		</Button>
+		<Button
+			variant="outline"
+			class="h-9 px-3.5 text-[11px] font-bold text-white bg-indigo-500 hover:bg-indigo-600 border-none shadow-md shadow-indigo-100 rounded-xl disabled:opacity-60"
+			onclick={promptSyncToQuestions}
+			disabled={isSyncing}
+		>
+			{#if isSyncing}
+				<RefreshCw class="w-3.5 h-3.5 mr-2 animate-spin" /> Syncing...
+			{:else}
+				<RefreshCw class="w-3.5 h-3.5 mr-2" /> Sync to Questions
+			{/if}
 		</Button>
 		<div class="relative group">
 			<input
@@ -487,7 +663,7 @@
 				onchange={(e) => handleFileUpload(e.currentTarget.files)}
 			/>
 			<Button
-				class="h-10 px-5 text-[12px] font-bold text-white bg-[#3B6D11] hover:bg-[#2D540D] transition-all shadow-md shadow-emerald-100 rounded-xl"
+				class="h-9 px-4.5 text-[11px] font-bold text-white bg-[#3B6D11] hover:bg-[#2D540D] transition-all shadow-md shadow-emerald-100 rounded-xl"
 			>
 				<CloudUpload class="w-3.5 h-3.5 mr-2" />
 				Upload Images
@@ -496,7 +672,7 @@
 	</div>
 
 	<!-- KPI Grid -->
-	<div class="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+	<div class="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-8 pb-[15px]">
 		{#each kpis as kpi}
 			<KpiCard
 				title={kpi.label}
@@ -967,6 +1143,17 @@
 		</div>
 	</Dialog.Content>
 </Dialog.Root>
+
+<!-- Shared Confirmation Modal -->
+<Confirmation
+	bind:open={confirmOpen}
+	title={confirmState.title}
+	description={confirmState.description}
+	confirmText={confirmState.confirmText}
+	confirmBtnClass={confirmState.confirmBtnClass}
+	icon={Trash2}
+	onConfirm={confirmState.onConfirm}
+/>
 
 <style>
 	:global(.bg-brand) {

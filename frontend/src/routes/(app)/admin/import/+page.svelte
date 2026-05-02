@@ -29,6 +29,7 @@
 		Calendar,
 		Hash,
 		Trophy,
+		Plus,
 	} from "@lucide/svelte";
 	import { Badge } from "$lib/components/ui/badge";
 	import { Button } from "$lib/components/ui/button";
@@ -36,6 +37,9 @@
 	import { toast } from "svelte-sonner";
 	import { fade, fly, scale } from "svelte/transition";
 	import { quintOut } from "svelte/easing";
+	import * as Dialog from "$lib/components/ui/dialog";
+	import { Input } from "$lib/components/ui/input";
+	import { Label } from "$lib/components/ui/label";
 	import Empty from "$lib/components/Empty.svelte";
 
 	let { data } = $props();
@@ -80,10 +84,99 @@
 
 	let importProgressValue = $state(0);
 	let isImporting = $state(false);
-	let defaultExam = $state("");
+	let defaultSubjectId = $state("");
+	let defaultExamId = $state("");
 	let defaultDifficulty = $state("Medium");
 
+	// Results from the real API call
+	let importedCount = $state(0);
+	let importErrors = $state<{ row: number; error: string }[]>([]);
+
 	let importHistory = $state<any[]>([]);
+
+	let subjectsList = $state(data.subjects || []);
+	let showAddSubjectModal = $state(false);
+	let newSubName = $state("");
+	let newSubExamId = $state("");
+	let isSavingSub = $state(false);
+
+	let subExistsLocally = $derived(
+		subjectsList.some((s: any) => s.name.toLowerCase() === newSubName.toLowerCase().trim())
+	);
+
+	async function quickAddSubject() {
+		if (!newSubName.trim() || !newSubExamId) {
+			toast.error("Please provide both name and exam");
+			return;
+		}
+		if (subExistsLocally) {
+			const match = subjectsList.find((s: any) => s.name.toLowerCase() === newSubName.toLowerCase().trim());
+			toast.error(`Course already exists as "${match.name}"`);
+			return;
+		}
+
+		isSavingSub = true;
+		try {
+			const res = await fetch("/api/admin/subjects", {
+				method: "POST",
+				body: JSON.stringify({ name: newSubName.trim(), examId: newSubExamId }),
+				headers: { "Content-Type": "application/json" }
+			});
+			const json = await res.json();
+			if (!res.ok) throw new Error(json.error || "Failed to create course");
+
+			// Update local list
+			subjectsList = [...subjectsList, json.data];
+			defaultSubjectId = json.data.id;
+			showAddSubjectModal = false;
+			newSubName = "";
+			toast.success(`Course "${json.data.name}" added successfully`);
+		} catch (e: any) {
+			toast.error(e.message);
+		} finally {
+			isSavingSub = false;
+		}
+	}
+	
+	function downloadTemplate(type: string) {
+		const headers = colDefs.map((d: any) => d.key);
+		let rows: string[][] = [];
+
+		if (type === 'full') {
+			rows = [
+				headers,
+				['What is the capital of France?', 'MCQ', 'Paris', 'London', 'Berlin', 'Madrid', 'A', 'Geography', 'JAMB', '2023', 'Paris is the capital of France.', '1'],
+				['The earth is flat.', 'TF', '', '', '', '', 'False', 'Geography', 'JAMB', '2023', 'The earth is a sphere.', '1']
+			];
+		} else if (type === 'mcq') {
+			rows = [
+				['question', 'type', 'opt_a', 'opt_b', 'opt_c', 'opt_d', 'correct', 'subject'],
+				['Example question?', 'MCQ', 'Option A', 'Option B', 'Option C', 'Option D', 'A', 'Biology']
+			];
+		} else if (type === 'tf') {
+			rows = [
+				['question', 'type', 'correct', 'subject'],
+				['Example True/False question?', 'TF', 'True', 'Physics']
+			];
+		} else if (type === 'theory') {
+			rows = [
+				['question', 'type', 'explanation', 'subject'],
+				['Explain the theory of relativity.', 'THEORY', 'The explanation goes here...', 'Physics']
+			];
+		}
+
+		const csvContent = rows.map(r => r.map(cell => `"${(cell || '').replace(/"/g, '""')}"`).join(',')).join('\n');
+		const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+		const url = URL.createObjectURL(blob);
+		const link = document.createElement('a');
+		link.setAttribute('href', url);
+		link.setAttribute('download', `mockcenter_${type}_template.csv`);
+		link.style.visibility = 'hidden';
+		document.body.appendChild(link);
+		link.click();
+		document.body.removeChild(link);
+		toast.success(`${type.toUpperCase()} template downloaded`);
+	}
 
 	// --- Actions ---
 	function mainAction() {
@@ -241,6 +334,33 @@
 				});
 			}
 
+			const subName = (dataRow.subject || "").trim();
+			const examName = (dataRow.exam || "").trim();
+
+			if (subName) {
+				const match = subjectsList.find((s: any) => s.name.toLowerCase() === subName.toLowerCase());
+				if (match && match.name !== subName) {
+					errors.push({
+						row: i + 2,
+						msg: `Row ${i + 2}: Course "${subName}" already exists as "${match.name}". Please fix the casing in your file.`,
+						type: "error",
+					});
+					return;
+				}
+			}
+
+			if (examName) {
+				const match = data.exams?.find((e: any) => e.name.toLowerCase() === examName.toLowerCase());
+				if (match && match.name !== examName) {
+					errors.push({
+						row: i + 2,
+						msg: `Row ${i + 2}: Exam "${examName}" already exists as "${match.name}". Please fix the casing in your file.`,
+						type: "error",
+					});
+					return;
+				}
+			}
+
 			const diff = dataRow.difficulty || defaultDifficulty;
 			let isWarn = false;
 			if (diff && !["Easy", "Medium", "Hard"].includes(diff)) {
@@ -260,27 +380,90 @@
 	}
 
 	async function startImport() {
+		if (!defaultSubjectId || !defaultExamId) {
+			toast.error('Please go back and select a Default Subject and Default Exam before importing.');
+			return;
+		}
+
 		currentStep = 5;
 		isImporting = true;
 		importProgressValue = 0;
-		const total = validationResults.valid.length;
 
-		for (let i = 0; i < total; i++) {
-			await new Promise((resolve) => setTimeout(resolve, 30));
-			importProgressValue = Math.round(((i + 1) / total) * 100);
+		// Animate progress while waiting for the real API response
+		const progressInterval = setInterval(() => {
+			if (importProgressValue < 88) importProgressValue = Math.min(88, importProgressValue + 3);
+		}, 180);
+
+		try {
+			// Build rows from validated data — each row.data already has the mapped column keys
+			const rows = validationResults.valid.map((v) => v.data);
+
+			const formData = new FormData();
+			formData.set('rows', JSON.stringify(rows));
+			formData.set('defaultSubjectId', defaultSubjectId);
+			formData.set('defaultExamId', defaultExamId);
+
+			const res = await fetch('?/importCsv', {
+				method: 'POST',
+				body: formData,
+				headers: {
+					// Required for SvelteKit to return JSON instead of an HTML redirect
+					'x-sveltekit-action': 'true',
+					'accept': 'application/json',
+				},
+			});
+
+			clearInterval(progressInterval);
+
+			const json = await res.json();
+
+			// SvelteKit action failure: { type: 'failure', status, data: { error } }
+			// SvelteKit action success: { type: 'success', status, data: { inserted, errors } }
+			if (!res.ok || json.type === 'failure') {
+				const errMsg =
+					json?.data?.error ??
+					json?.error ??
+					`Server error (${res.status}). Please try again.`;
+				toast.error(errMsg);
+				isImporting = false;
+				currentStep = 4;
+				return;
+			}
+
+			importProgressValue = 100;
+
+			// Unwrap the SvelteKit action data envelope
+			const actionData = json?.data ?? json;
+			const inserted: number = actionData?.inserted ?? validationResults.valid.length;
+			const backendErrors: { row: number; error: string }[] = actionData?.errors ?? [];
+
+			importedCount = inserted;
+			importErrors = backendErrors;
+
+			importHistory = [
+				{
+					date: new Date(),
+					fileName,
+					total: inserted,
+					errors: backendErrors.length,
+				},
+				...importHistory,
+			];
+
+			if (backendErrors.length > 0) {
+				toast.warning(`${inserted} questions saved. ${backendErrors.length} rows had errors.`);
+			} else {
+				toast.success(`${inserted} questions saved to database ✓`);
+			}
+		} catch (e) {
+			clearInterval(progressInterval);
+			console.error('[Import Error]', e);
+			toast.error('Network error during import. Check your connection and try again.');
+			isImporting = false;
+			currentStep = 4;
+		} finally {
+			isImporting = false;
 		}
-
-		isImporting = false;
-		importHistory = [
-			{
-				date: new Date(),
-				fileName,
-				total,
-				errors: validationResults.errors.length,
-			},
-			...importHistory,
-		];
-		toast.success(`${total} questions imported ✓`);
 	}
 
 	function rollback() {
@@ -313,7 +496,8 @@
 	);
 
 	let isMainBtnDisabled = $derived(
-		currentStep === 1 && parsedRows.length === 0,
+		(currentStep === 1 && parsedRows.length === 0) ||
+		(currentStep === 2 && (!defaultSubjectId || !defaultExamId)),
 	);
 </script>
 
@@ -453,6 +637,7 @@
 						</h4>
 						<div class="grid grid-cols-2 gap-4">
 							<div
+								onclick={() => downloadTemplate('full')}
 								class="p-3.5 border border-gray-200 rounded-xl hover:border-brand/40 hover:bg-brand/5 cursor-pointer transition-colors group"
 							>
 								<div
@@ -471,6 +656,7 @@
 								</p>
 							</div>
 							<div
+								onclick={() => downloadTemplate('mcq')}
 								class="p-3.5 border border-gray-200 rounded-xl hover:border-brand/40 hover:bg-brand/5 cursor-pointer transition-colors group"
 							>
 								<div
@@ -488,6 +674,7 @@
 								</p>
 							</div>
 							<div
+								onclick={() => downloadTemplate('tf')}
 								class="p-3.5 border border-gray-200 rounded-xl hover:border-brand/40 hover:bg-brand/5 cursor-pointer transition-colors group"
 							>
 								<div
@@ -505,6 +692,7 @@
 								</p>
 							</div>
 							<div
+								onclick={() => downloadTemplate('theory')}
 								class="p-3.5 border border-gray-200 rounded-xl hover:border-brand/40 hover:bg-brand/5 cursor-pointer transition-colors group"
 							>
 								<div
@@ -601,39 +789,48 @@
 						<div
 							class="mt-8 pt-6 border-t border-gray-100 grid grid-cols-2 gap-4"
 						>
+							<!-- Default Subject (required by API) -->
+							<div class="flex flex-col gap-2">
+								<div class="flex items-center justify-between">
+									<label
+										for="defSubject"
+										class="text-[11px] font-bold text-gray-400 uppercase tracking-widest"
+										>Default Course <span class="text-red-500">*</span></label
+									>
+									<button 
+										onclick={() => showAddSubjectModal = true}
+										class="text-[10px] font-bold text-brand hover:underline flex items-center gap-1"
+									>
+										<Plus size={10} /> New Course
+									</button>
+								</div>
+								<select
+									id="defSubject"
+									bind:value={defaultSubjectId}
+									class="w-full text-[12px] font-semibold rounded-lg px-3 py-2 border {!defaultSubjectId ? 'border-red-200 bg-red-50/30' : 'border-gray-200 bg-gray-50'} text-gray-800 focus:outline-none focus:border-brand/40"
+								>
+									<option value="">— Select a course —</option>
+									{#each subjectsList ?? [] as s}
+										<option value={s.id}>{s.name}</option>
+									{/each}
+								</select>
+							</div>
+							<!-- Default Exam (required by API) -->
 							<div class="flex flex-col gap-2">
 								<label
 									for="defExam"
 									class="text-[11px] font-bold text-gray-400 uppercase tracking-widest"
-									>Default Exam</label
+									>Default Exam <span class="text-red-500">*</span></label
 								>
 								<select
 									id="defExam"
-									bind:value={defaultExam}
-									class="w-full text-[12px] font-semibold rounded-lg px-3 py-2 border border-gray-200 bg-gray-50 text-gray-800 focus:outline-none focus:border-brand/40"
+									bind:value={defaultExamId}
+									class="w-full text-[12px] font-semibold rounded-lg px-3 py-2 border {!defaultExamId ? 'border-red-200 bg-red-50/30' : 'border-gray-200 bg-gray-50'} text-gray-800 focus:outline-none focus:border-brand/40"
 								>
-									<option value="">— Automatically detect —</option>
-									<option>JAMB</option>
-									<option>WAEC</option>
-									<option>NECO</option>
-									<option>POST-UTME</option>
-								</select>
-							</div>
-							<div class="flex flex-col gap-2">
-								<label
-									for="defDiff"
-									class="text-[11px] font-bold text-gray-400 uppercase tracking-widest"
-									>Default Difficulty</label
-								>
-								<select
-									id="defDiff"
-									bind:value={defaultDifficulty}
-									class="w-full text-[12px] font-semibold rounded-lg px-3 py-2 border border-gray-200 bg-gray-50 text-gray-800 focus:outline-none focus:border-brand/40"
-								>
-									<option value="">— None —</option>
-									<option value="Easy">Easy</option>
-									<option value="Medium">Medium</option>
-									<option value="Hard">Hard</option>
+									<option value="">— Select an exam —</option>
+									{#each data.exams ?? [] as e}
+										<option value={e.id}>{e.name}</option>
+									{/each}
 								</select>
 							</div>
 						</div>
@@ -950,11 +1147,24 @@
 								>
 									Import Successful!
 								</h2>
-								<p class="text-[14px] text-slate-500 font-medium mb-8 max-w-xs">
-									Successfully added <span class="text-brand font-bold"
-										>{validationResults.valid.length}</span
-									> questions to the library.
+								<p class="text-[14px] text-slate-500 font-medium mb-2 max-w-xs">
+									Successfully saved <span class="text-brand font-bold"
+										>{importedCount}</span
+									> questions to the database.
 								</p>
+								{#if importErrors.length > 0}
+									<div class="mb-6 w-full max-w-xs bg-amber-50 border border-amber-200 rounded-xl p-3 text-left">
+										<p class="text-[11px] font-bold text-amber-700 mb-2">{importErrors.length} row(s) had errors:</p>
+										<ul class="text-[11px] text-amber-600 space-y-1 list-disc list-inside">
+											{#each importErrors.slice(0, 5) as e}
+												<li>Row {e.row}: {e.error}</li>
+											{/each}
+											{#if importErrors.length > 5}<li>...and {importErrors.length - 5} more</li>{/if}
+										</ul>
+									</div>
+								{:else}
+									<p class="text-[12px] text-emerald-600 font-semibold mb-6">No errors — all rows saved cleanly ✓</p>
+								{/if}
 
 								<div class="flex gap-4">
 									<button
@@ -1088,6 +1298,69 @@
 			</div>
 		</div>
 	</div>
+
+	<Dialog.Root bind:open={showAddSubjectModal}>
+		<Dialog.Content class="sm:max-w-[425px] rounded-2xl">
+			<Dialog.Header>
+				<Dialog.Title class="text-[18px] font-black tracking-tight">Add New Course</Dialog.Title>
+				<Dialog.Description class="text-[13px] font-medium text-slate-500">
+					Create a new course and link it to an exam. Duplicate names (case-insensitive) are flagged to prevent duplicates.
+				</Dialog.Description>
+			</Dialog.Header>
+			<div class="grid gap-5 py-4">
+				<div class="grid gap-2">
+					<Label for="name" class="text-[12px] font-bold text-slate-700">Course Name</Label>
+					<Input
+						id="name"
+						bind:value={newSubName}
+						placeholder="e.g. Physics"
+						class="rounded-xl h-11 {subExistsLocally ? 'border-red-500 ring-red-50' : ''}"
+					/>
+					{#if subExistsLocally}
+						<p class="text-[11px] font-bold text-red-500 flex items-center gap-1">
+							<AlertCircle size={12} /> This course name already exists
+						</p>
+					{/if}
+				</div>
+				<div class="grid gap-2">
+					<Label for="exam" class="text-[12px] font-bold text-slate-700">Associated Exam</Label>
+					<select
+						id="exam"
+						bind:value={newSubExamId}
+						class="w-full text-[13px] font-medium rounded-xl h-11 px-3 py-2 border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-brand/20"
+					>
+						<option value="">— Select an exam —</option>
+						{#each data.exams ?? [] as e}
+							<option value={e.id}>{e.name}</option>
+						{/each}
+					</select>
+				</div>
+			</div>
+			<Dialog.Footer class="gap-2">
+				<Button
+					variant="outline"
+					class="rounded-xl h-11 font-bold text-[13px]"
+					onclick={() => {
+						showAddSubjectModal = false;
+						newSubName = "";
+					}}
+				>
+					Cancel
+				</Button>
+				<Button 
+					class="rounded-xl h-11 font-bold text-[13px] bg-brand hover:bg-brand-dark transition-all"
+					onclick={quickAddSubject} 
+					disabled={isSavingSub || !newSubName.trim() || !newSubExamId || subExistsLocally}
+				>
+					{#if isSavingSub}
+						Adding...
+					{:else}
+						Add Course
+					{/if}
+				</Button>
+			</Dialog.Footer>
+		</Dialog.Content>
+	</Dialog.Root>
 </main>
 
 <style>

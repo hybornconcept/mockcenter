@@ -117,6 +117,25 @@
 		filteredUsers.slice((page - 1) * itemsPerPage, page * itemsPerPage),
 	);
 
+	// -- Pagination Window --
+	let visiblePages = $derived.by(() => {
+		const delta = 2;
+		let start = Math.max(1, page - delta);
+		let end = Math.min(totalPages, page + delta);
+
+		if (page <= delta) {
+			end = Math.min(totalPages, 5);
+		} else if (page > totalPages - delta) {
+			start = Math.max(1, totalPages - 4);
+		}
+
+		const pages = [];
+		for (let i = start; i <= end; i++) {
+			pages.push(i);
+		}
+		return pages;
+	});
+
 	let kpi = $derived({
 		total: USERS.length,
 		active: USERS.filter((u) => u.status === "Active").length,
@@ -324,37 +343,45 @@
 
 {#snippet userRow(u)}
 	<tr
-		class="group transition-all hover:bg-slate-50/80 {activeUser?.id === u.id
-			? 'bg-brand-muted/10 row-sel shadow-inner'
-			: ''} {u.status === 'suspended' ? 'bg-red-50/40 hover:bg-red-50/60' : ''}"
+		onclick={() => openUserDetail(u)}
+		class="group transition-all hover:bg-brand/[0.02] cursor-pointer {u.status ===
+		'suspended'
+			? 'bg-red-50/40'
+			: ''}"
 	>
-		<td class="py-4 px-3 pl-6">
-			<div class="flex items-center gap-3">
-				<div
-					class="w-8 h-8 rounded-full bg-slate-100 flex-shrink-0 flex items-center justify-center overflow-hidden border border-slate-200/60 shadow-sm transition-transform group-hover:scale-110"
-				>
-					<img
-						src="https://api.dicebear.com/7.x/avataaars/svg?seed={u.first}{u.last}"
-						alt="avatar"
-						class="w-full h-full object-cover"
-					/>
+		<td class="py-3.5 px-3 pl-6">
+			<div class="flex items-center gap-3.5">
+				<div class="relative group/avatar">
+					<div
+						class="w-10 h-10 rounded-xl overflow-hidden border-2 border-white shadow-sm ring-1 ring-brand/10 group-hover/avatar:ring-brand/30 transition-all"
+					>
+						<img
+							src="https://api.dicebear.com/7.x/avataaars/svg?seed={u.first}{u.last}"
+							alt="avatar"
+							class="w-full h-full object-cover"
+						/>
+					</div>
+					{#if u.status === "active"}
+						<div
+							class="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 border-2 border-white rounded-full shadow-sm"
+						></div>
+					{/if}
 				</div>
 				<div class="flex flex-col">
 					<span
-						class="text-[13px] font-semibold text-slate-900 leading-tight capitalize"
-						>{u.first.toLowerCase()} {u.last.toLowerCase()}</span
+						class="text-[13px] font-bold text-slate-900 group-hover:text-brand transition-colors"
+						>{u.first} {u.last}</span
 					>
-					<span
-						class="text-[10px] text-slate-500 font-semibold tracking-tight mt-0.5"
+					<span class="text-[10px] font-medium text-slate-500 tracking-tight"
 						>{u.email}</span
 					>
 				</div>
 			</div>
 		</td>
-		<td class="py-4 px-3 text-center">
-			<div class="flex justify-center">
+		<td class="py-3.5 px-3">
+			<div class="flex flex-col gap-1">
 				<div
-					class="flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-semibold capitalize tracking-wider {u.status ===
+					class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all {u.status ===
 					'active'
 						? 'bg-emerald-50 text-emerald-600 border border-emerald-100/50'
 						: u.status === 'suspended'
@@ -370,7 +397,7 @@
 				</div>
 			</div>
 		</td>
-		<td class="py-4 px-3 text-center">
+		<td class="py-3.5 px-3 text-center">
 			<span
 				class="text-[10px] font-semibold px-2.5 py-1 rounded-lg border uppercase tracking-tight transition-all {u.plan ===
 				'Premium'
@@ -380,7 +407,7 @@
 				{u.plan}
 			</span>
 		</td>
-		<td class="py-4 px-3">
+		<td class="py-3.5 px-3">
 			<div class="flex flex-col gap-1.5 w-28">
 				<div class="flex items-center justify-between">
 					<span
@@ -403,7 +430,7 @@
 				</div>
 			</div>
 		</td>
-		<td class="py-4 px-3 text-center">
+		<td class="py-3.5 px-3 text-center">
 			<div class="flex items-center justify-center gap-1">
 				<Star class="w-3 h-3 text-amber-400 fill-amber-400" />
 				<span class="text-[13px] font-semibold text-slate-900"
@@ -412,7 +439,7 @@
 			</div>
 		</td>
 
-		<td class="py-4 pl-3 pr-6 text-right" onclick={(e) => e.stopPropagation()}>
+		<td class="py-3.5 pl-3 pr-6 text-right" onclick={(e) => e.stopPropagation()}>
 			<div class="flex items-center justify-end gap-1.5">
 				<Button
 					variant="ghost"
@@ -668,17 +695,41 @@
 						>
 							Prev
 						</button>
-						{#each Array(totalPages) as _, idx}
+						{#if visiblePages[0] > 1}
 							<button
-								onclick={() => (page = idx + 1)}
+								onclick={() => (page = 1)}
+								class="w-8 h-8 rounded-lg border text-[11px] font-semibold transition-all bg-white border-slate-200 text-slate-500 hover:bg-slate-50"
+							>
+								1
+							</button>
+							{#if visiblePages[0] > 2}
+								<span class="flex items-center px-1 text-slate-400 text-[10px]">...</span>
+							{/if}
+						{/if}
+
+						{#each visiblePages as p}
+							<button
+								onclick={() => (page = p)}
 								class="w-8 h-8 rounded-lg border text-[11px] font-semibold transition-all {page ===
-								idx + 1
+								p
 									? 'bg-brand border-brand text-white shadow-md'
 									: 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'}"
 							>
-								{idx + 1}
+								{p}
 							</button>
 						{/each}
+
+						{#if visiblePages[visiblePages.length - 1] < totalPages}
+							{#if visiblePages[visiblePages.length - 1] < totalPages - 1}
+								<span class="flex items-center px-1 text-slate-400 text-[10px]">...</span>
+							{/if}
+							<button
+								onclick={() => (page = totalPages)}
+								class="w-8 h-8 rounded-lg border text-[11px] font-semibold transition-all bg-white border-slate-200 text-slate-500 hover:bg-slate-50"
+							>
+								{totalPages}
+							</button>
+						{/if}
 						<button
 							onclick={() => (page = Math.min(totalPages, page + 1))}
 							disabled={page === totalPages}

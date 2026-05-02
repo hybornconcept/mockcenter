@@ -3,14 +3,19 @@ import type { Env } from "../env";
 
 const imagesRoute = new Hono<{ Bindings: Env }>();
 
-imagesRoute.get("/:filename", async (c) => {
-  const filename = c.req.param("filename");
+imagesRoute.get("/:path{.+}", async (c) => {
+  const path = c.req.param("path");
 
   if (!c.env.QUESTION_IMAGES) {
     return c.json({ success: false, message: "R2 Bucket not configured" }, 500);
   }
 
-  const object = await c.env.QUESTION_IMAGES.get(filename);
+  // The R2 key is stored without the leading '/images/' prefix.
+  // Try the path as-is first, then try with images/ prefix for legacy keys.
+  let object = await c.env.QUESTION_IMAGES.get(path);
+  if (!object) {
+    object = await c.env.QUESTION_IMAGES.get(`images/${path}`);
+  }
 
   if (object === null) {
     return c.json({ success: false, message: "Image not found" }, 404);

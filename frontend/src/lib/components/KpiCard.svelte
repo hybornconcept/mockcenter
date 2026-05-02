@@ -19,7 +19,7 @@
 </script>
 
 <div
-	class="group relative h-[115px] overflow-hidden rounded-lg border border-slate-200 bg-white p-3.5 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-brand/40 hover:bg-brand-muted/20 hover:shadow-lg"
+	class="group relative h-[118px] overflow-hidden rounded-lg border border-slate-200 bg-white pt-4 pb-[22px] px-4 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-brand/40 hover:bg-brand-muted/20 hover:shadow-lg"
 >
 	{#if Icon}
 		<Icon
@@ -28,11 +28,11 @@
 		/>
 	{/if}
 	<span
-		class="relative z-10 text-[12px] font-medium tracking-tight text-gray-400 capitalize"
+		class="relative z-10 block text-[11px] font-bold tracking-widest text-gray-400 uppercase mb-2.5"
 		>{title}</span
 	>
 	<span
-		class="relative z-10 block text-[26px] font-bold leading-none tracking-tight text-slate-800 transition-colors group-hover:text-brand py-1"
+		class="relative z-10 block text-[28px] font-bold leading-none tracking-tight text-slate-800 transition-colors group-hover:text-brand mb-3"
 		>{value}</span
 	>
 	<div class="relative z-10 flex w-full items-center justify-between">

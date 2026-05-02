@@ -35,7 +35,6 @@
 	let selectedIds = $state<number[]>([]);
 	let searchQuery = $state("");
 	let filterType = $state("");
-	let filterDiff = $state("");
 	let filterExam = $state("");
 	let filterSub = $state("");
 	let page = $state(1);
@@ -220,7 +219,6 @@
 			)
 				return false;
 			if (filterType && q.type !== filterType) return false;
-			if (filterDiff && q.diff !== filterDiff) return false;
 			if (filterExam && q.exam !== filterExam) return false;
 			if (filterSub && q.subject !== filterSub) return false;
 			return true;
@@ -237,6 +235,25 @@
 		paginatedDB.length > 0 &&
 			paginatedDB.every((q) => selectedIds.includes(q.id)),
 	);
+
+	// -- Pagination Window --
+	let visiblePages = $derived.by(() => {
+		const delta = 2;
+		let start = Math.max(1, page - delta);
+		let end = Math.min(totalPages, page + delta);
+
+		if (page <= delta) {
+			end = Math.min(totalPages, 5);
+		} else if (page > totalPages - delta) {
+			start = Math.max(1, totalPages - 4);
+		}
+
+		const pages = [];
+		for (let i = start; i <= end; i++) {
+			pages.push(i);
+		}
+		return pages;
+	});
 
 	// -- Stats --
 	let totalQuestions = $derived(DB?.length ?? 0);
@@ -300,10 +317,10 @@
 {#snippet questionRow(q, idx)}
 	<tr class="group transition-all hover:bg-slate-50/50">
 		<td
-			class="whitespace-nowrap py-4 pl-6 pr-2 text-center text-[11px] font-bold text-slate-400"
+			class="whitespace-nowrap py-3.5 pl-6 pr-2 text-center text-[11px] font-bold text-slate-400"
 			>{(page - 1) * itemsPerPage + idx + 1}</td
 		>
-		<td class="py-4 px-3">
+		<td class="py-3.5 px-3">
 			<div class="flex flex-col gap-0.5">
 				<span
 					class="cursor-pointer text-[13px] font-semibold text-slate-800 leading-normal transition-colors group-hover:text-brand line-clamp-2"
@@ -315,7 +332,7 @@
 				>
 			</div>
 		</td>
-		<td class="py-4 px-3 text-center">
+		<td class="py-3.5 px-3 text-center">
 			{#if q.img_url}
 				<div
 					class="mx-auto h-9 w-9 cursor-zoom-in overflow-hidden rounded-lg border border-slate-100 bg-white shadow-sm transition-transform hover:scale-110"
@@ -330,7 +347,7 @@
 				</div>
 			{/if}
 		</td>
-		<td class="py-4 px-3">
+		<td class="py-3.5 px-3">
 			<Badge
 				variant="secondary"
 				class="rounded-md border-blue-100/30 bg-blue-50/50 px-2 py-0.5 text-[10px] font-semibold text-blue-600"
@@ -338,19 +355,18 @@
 				{q.type}
 			</Badge>
 		</td>
-		<td class="py-4 px-3 text-[12px] font-medium text-slate-600">{q.subject}</td
-		>
+		<td class="py-3.5 px-3 text-[12px] font-medium text-slate-600">{q.subject}</td>
 		<td
-			class="whitespace-nowrap py-4 px-2 text-[12px] font-bold tracking-tight text-slate-700"
+			class="whitespace-nowrap py-3.5 px-2 text-[12px] font-bold tracking-tight text-slate-700"
 			>{q.exam}/{q.year}</td
 		>
-		<td class="py-4 px-2 text-center">
+		<td class="py-3.5 px-2 text-center">
 			<div
 				class="mx-auto h-3 w-3 rounded-full shadow-sm {q.diff === 'Easy' ? 'bg-emerald-500' : q.diff === 'Hard' ? 'bg-red-500' : 'bg-amber-500'}"
 				title={q.diff}
 			></div>
 		</td>
-		<td class="py-4 pl-2 pr-6 text-right">
+		<td class="py-3.5 pl-2 pr-6 text-right">
 			<div
 				class="flex items-center justify-end gap-2 transition-all duration-200"
 			>
@@ -377,7 +393,7 @@
 	<!-- Actions -->
 	<div class="flex justify-end gap-2 mb-4 relative z-20">
 		<button
-			class="flex items-center gap-2 px-3 py-1.5 text-[12px] font-semibold rounded-lg bg-slate-50 border border-slate-200 text-slate-600 hover:bg-slate-100 transition-all shadow-sm group/btn"
+			class="flex items-center gap-2 px-3 py-1 text-[11px] font-semibold rounded-lg bg-slate-50 border border-slate-200 text-slate-600 hover:bg-slate-100 transition-all shadow-sm group/btn"
 		>
 			<DownloadCloud
 				class="w-3.5 h-3.5 text-slate-400 group-hover/btn:text-slate-600"
@@ -386,7 +402,7 @@
 		</button>
 		<button
 			onclick={() => (showImportModal = true)}
-			class="flex items-center gap-2 px-3 py-1.5 text-[12px] font-semibold rounded-lg text-blue-700 bg-blue-50 border border-blue-100/50 hover:bg-blue-100/80 transition-all shadow-sm group/btn"
+			class="flex items-center gap-2 px-3 py-1 text-[11px] font-semibold rounded-lg text-blue-700 bg-blue-50 border border-blue-100/50 hover:bg-blue-100/80 transition-all shadow-sm group/btn"
 		>
 			<UploadCloud
 				class="w-3.5 h-3.5 text-blue-500 group-hover/btn:text-blue-600"
@@ -395,7 +411,7 @@
 		</button>
 		<button
 			onclick={openAdd}
-			class="flex items-center gap-2 px-3.5 py-1.5 text-[12px] font-bold rounded-lg text-white bg-brand border border-brand/90 hover:bg-[#2c530c] hover:shadow-md transition-all shadow-sm group/btn"
+			class="flex items-center gap-2 px-3 py-1 text-[11px] font-bold rounded-lg text-white bg-brand border border-brand/90 hover:bg-[#2c530c] hover:shadow-md transition-all shadow-sm group/btn"
 		>
 			<Plus class="w-3.5 h-3.5 text-white/80 group-hover/btn:text-white" />
 			Add Question
@@ -490,33 +506,23 @@
 								</Select.Content>
 							</Select.Root>
 
-							<Select.Root type="single" bind:value={filterDiff}>
+							<Select.Root type="single" bind:value={filterSub}>
 								<Select.Trigger
-									class="w-[140px] h-11 px-4 bg-white border-slate-200 rounded-xl text-[13px] font-medium shadow-sm"
+									class="w-[160px] h-11 px-4 bg-white border-slate-200 rounded-xl text-[13px] font-medium shadow-sm"
 								>
-									{filterDiff || "Difficulty"}
+									{filterSub || "All Courses"}
 								</Select.Trigger>
 								<Select.Content
 									class="rounded-xl border-slate-200 shadow-xl overflow-hidden"
 								>
 									<Select.Item value="" class="text-[13px] font-medium py-2"
-										>All difficulties</Select.Item
+										>All Courses</Select.Item
 									>
-									<Select.Item
-										value="Easy"
-										class="text-[13px] font-medium py-2 text-emerald-600"
-										>Easy</Select.Item
-									>
-									<Select.Item
-										value="Medium"
-										class="text-[13px] font-medium py-2 text-amber-600"
-										>Medium</Select.Item
-									>
-									<Select.Item
-										value="Hard"
-										class="text-[13px] font-medium py-2 text-red-600"
-										>Hard</Select.Item
-									>
+									{#each data.subjectNames ?? [] as sub}
+										<Select.Item value={sub} class="text-[13px] font-medium py-2"
+											>{sub}</Select.Item
+										>
+									{/each}
 								</Select.Content>
 							</Select.Root>
 
@@ -582,7 +588,7 @@
 								<th class="py-4 px-3 w-[45%]">Question</th>
 								<th class="py-4 px-2 text-center w-20">Image</th>
 								<th class="py-4 px-2 w-24">Type</th>
-								<th class="py-4 px-2 w-28">Subject</th>
+								<th class="py-4 px-2 w-28">Course</th>
 								<th class="py-4 px-2 w-32 whitespace-nowrap">Exam/Year</th>
 								<th class="py-4 px-2 text-center w-24">Difficulty</th>
 								<th class="py-4 pl-2 pr-6 text-right w-24">Actions</th>
@@ -625,17 +631,41 @@
 							>
 								Prev
 							</button>
-							{#each Array(totalPages) as _, idx}
+							{#if visiblePages[0] > 1}
 								<button
-									onclick={() => (page = idx + 1)}
+									onclick={() => (page = 1)}
+									class="px-2.5 py-1.5 rounded border text-[11px] font-semibold transition-colors min-w-[28px] text-center bg-white text-slate-500 border-transparent hover:bg-slate-50"
+								>
+									1
+								</button>
+								{#if visiblePages[0] > 2}
+									<span class="flex items-center px-1 text-slate-400 text-[10px]">...</span>
+								{/if}
+							{/if}
+
+							{#each visiblePages as p}
+								<button
+									onclick={() => (page = p)}
 									class="px-2.5 py-1.5 rounded border text-[11px] font-semibold transition-colors min-w-[28px] text-center {page ===
-									idx + 1
+									p
 										? 'text-brand-dark bg-brand-muted border-brand/20'
 										: 'bg-white text-slate-500 border-transparent hover:bg-slate-50'}"
 								>
-									{idx + 1}
+									{p}
 								</button>
 							{/each}
+
+							{#if visiblePages[visiblePages.length - 1] < totalPages}
+								{#if visiblePages[visiblePages.length - 1] < totalPages - 1}
+									<span class="flex items-center px-1 text-slate-400 text-[10px]">...</span>
+								{/if}
+								<button
+									onclick={() => (page = totalPages)}
+									class="px-2.5 py-1.5 rounded border text-[11px] font-semibold transition-colors min-w-[28px] text-center bg-white text-slate-500 border-transparent hover:bg-slate-50"
+								>
+									{totalPages}
+								</button>
+							{/if}
 							<button
 								onclick={() => page < totalPages && page++}
 								disabled={page === totalPages}

@@ -397,7 +397,7 @@
 
 	<!-- Main Content Wrapper -->
 	<Sidebar.Inset
-		class="flex-1 min-w-0 flex flex-col pb-10 px-8 h-screen overflow-y-auto custom-scrollbar relative transition-all duration-300 border-none bg-[#f8f9fc]"
+		class="flex-1 min-w-0 flex flex-col pb-10 px-8 h-screen overflow-y-auto custom-scrollbar relative transition-all duration-300 border-none {isAdminView ? 'admin-grid-bg' : 'bg-[#f8f9fc]'}"
 	>
 		<header
 			class="flex items-center justify-between mb-5 bg-white py-2 z-20 px-8 shadow-[0_2px_10px_rgba(0,0,0,0.02)] border-b border-gray-100 -mx-8 w-[calc(100%+4rem)] z-10 sticky top-0 m-0"
@@ -678,6 +678,25 @@
 	}
 	:global(.custom-scrollbar::-webkit-scrollbar-thumb:hover) {
 		background: #cbd5e1;
+	}
+	:global(.admin-grid-bg) {
+		background-color: #f8fbff;
+		background-image: linear-gradient(#e5e7eb 0.5px, transparent 0.5px),
+			linear-gradient(90deg, #e5e7eb 0.5px, transparent 0.5px);
+		background-size: 40px 40px;
+		background-position: center center;
+	}
+	:global(.admin-grid-bg::before) {
+		content: "";
+		position: fixed;
+		inset: 0;
+		pointer-events: none;
+		z-index: 0;
+		background: radial-gradient(
+			circle at 50% 50%,
+			rgba(255, 255, 255, 0) 0%,
+			#f8fbff 100%
+		);
 	}
 	:global(body) {
 		font-family:
