@@ -827,17 +827,19 @@
 							>Quick Template</Label
 						>
 						<Select.Root
-							onSelectedChange={(v) => applyTemplate(v?.value as string)}
+							type="single"
+							bind:value={selectedTemplate}
+							onValueChange={applyTemplate}
 						>
 							<Select.Trigger class="text-xs border-gray-200 h-9">
-								<Select.Value placeholder="Start from scratch" />
+								{selectedTemplate ? selectedTemplate : "Start from scratch"}
 							</Select.Trigger>
 							<Select.Content>
-								<Select.Item value="">Start from scratch</Select.Item>
-								<Select.Item value="welcome">Welcome message</Select.Item>
-								<Select.Item value="credit">Low credit alert</Select.Item>
-								<Select.Item value="exam">Exam reminder</Select.Item>
-								<Select.Item value="result">Result available</Select.Item>
+								<Select.Item value="" label="Start from scratch">Start from scratch</Select.Item>
+								<Select.Item value="welcome" label="Welcome message">Welcome message</Select.Item>
+								<Select.Item value="credit" label="Low credit alert">Low credit alert</Select.Item>
+								<Select.Item value="exam" label="Exam reminder">Exam reminder</Select.Item>
+								<Select.Item value="result" label="Result available">Result available</Select.Item>
 							</Select.Content>
 						</Select.Root>
 					</div>

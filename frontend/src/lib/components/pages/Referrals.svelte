@@ -9,7 +9,7 @@
 		ChevronRight,
 		Star,
 		Sparkles,
-	} from "lucide-svelte";
+	} from "@lucide/svelte";
 
 	const benefits = [
 		{

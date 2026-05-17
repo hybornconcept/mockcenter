@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Eye, EyeOff, LoaderCircle, Sparkles, Mail, User, KeyRound } from "lucide-svelte";
+	import { Eye, EyeOff, LoaderCircle, Sparkles, Mail, User, KeyRound } from "@lucide/svelte";
 	import { toast } from "svelte-sonner";
 	import { Button } from "$lib/components/ui/button";
 	import { Input } from "$lib/components/ui/input";

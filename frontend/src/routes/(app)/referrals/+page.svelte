@@ -20,11 +20,21 @@
 		Search,
 		Trash2,
 		Key,
-	} from "lucide-svelte";
+		Check,
+		ArrowRight,
+		Clock,
+		Banknote,
+		Zap,
+		BookOpen,
+		Target,
+		ShieldCheck,
+	} from "@lucide/svelte";
 	import * as Card from "$lib/components/ui/card/index.js";
 	import { Badge } from "$lib/components/ui/badge/index.js";
 	import { Button } from "$lib/components/ui/button/index.js";
+	import { Input } from "$lib/components/ui/input/index.js";
 	import * as Select from "$lib/components/ui/select/index.js";
+	import Empty from "$lib/components/Empty.svelte";
 	import { slide, fly } from "svelte/transition";
 
 	let { data } = $props();
@@ -39,6 +49,8 @@
 	let showTiers = $state(false);
 	let copiedCode = $state(false);
 	let copiedLink = $state(false);
+	let conversionTab = $state<"cash" | "practice">("cash");
+	let historyTab = $state<"all" | "successful" | "pending">("all");
 
 	function copyToClipboard(text: string, type: "code" | "link") {
 		navigator.clipboard.writeText(text);
@@ -548,30 +560,39 @@
 	</Card.Root>
 
 	<!-- History Space -->
-	<div class="grid grid-cols-1 md:grid-cols-[1fr_300px] gap-5">
+	<div class="grid grid-cols-1 xl:grid-cols-[1fr_35%] gap-6 items-start">
 		<!-- History Table -->
 		<Card.Root
 			class="border-slate-200 shadow-sm overflow-hidden flex flex-col bg-white rounded-2xl"
 		>
-			<Card.Header class="pb-0 px-0 pt-6">
+			<Card.Header class="pb-0 px-0 pt-5">
 				<div class="px-8 pb-4 flex items-center justify-between">
 					<Card.Title class="text-[16px] font-extrabold text-slate-800">
-						Referral history (125)
+						Referral Summary
 					</Card.Title>
 				</div>
 
 				<!-- Tabs -->
 				<div class="px-8 flex gap-8 border-b border-slate-100">
 					<button
-						class="pb-3 text-[13px] font-bold text-brand border-b-2 border-brand"
+						onclick={() => (historyTab = "all")}
+						class="pb-3 text-[13px] transition-all {historyTab === 'all'
+							? 'font-bold text-[#3B6D11] border-b-2 border-[#3B6D11]'
+							: 'font-medium text-slate-400 hover:text-slate-600 border-b-2 border-transparent'}"
 						>All</button
 					>
 					<button
-						class="pb-3 text-[13px] font-medium text-slate-400 hover:text-slate-600"
+						onclick={() => (historyTab = "successful")}
+						class="pb-3 text-[13px] transition-all {historyTab === 'successful'
+							? 'font-bold text-[#3B6D11] border-b-2 border-[#3B6D11]'
+							: 'font-medium text-slate-400 hover:text-slate-600 border-b-2 border-transparent'}"
 						>Successful</button
 					>
 					<button
-						class="pb-3 text-[13px] font-medium text-slate-400 hover:text-slate-600"
+						onclick={() => (historyTab = "pending")}
+						class="pb-3 text-[13px] transition-all {historyTab === 'pending'
+							? 'font-bold text-[#3B6D11] border-b-2 border-[#3B6D11]'
+							: 'font-medium text-slate-400 hover:text-slate-600 border-b-2 border-transparent'}"
 						>Pending</button
 					>
 				</div>
@@ -688,6 +709,10 @@
 								</button>
 							</div>
 						</div>
+					{:else}
+						<div class="py-12">
+							<Empty title="No referrals found" message="You haven't referred anyone matching these filters yet." />
+						</div>
 					{/each}
 				</div>
 			</Card.Content>
@@ -735,59 +760,378 @@
 			</div>
 		</Card.Root>
 
-		<!-- Right Stats Panel -->
-		<div class="flex flex-col gap-5">
-			<!-- Total Earned Card -->
+		<!-- Convert Your Credits Panel (Right) -->
+		<div class="flex flex-col gap-4">
 			<div
-				class="bg-brand rounded-2xl p-6 text-white shadow-sm flex flex-col relative overflow-hidden h-fit"
+				class="border border-slate-200 shadow-sm overflow-hidden flex flex-col rounded-2xl h-fit bg-white"
 			>
-				<span
-					class="text-[10px] uppercase tracking-widest font-bold text-white/70 mb-1"
-					>Total credits earned from referrals</span
+				<!-- Shared Colored Header -->
+				<div
+					class="p-6 relative text-white transition-colors duration-500 {conversionTab ===
+					'cash'
+						? 'bg-brand'
+						: 'bg-[#1f73b7]'}"
 				>
-				<div class="flex items-baseline gap-2 mb-1 relative z-10">
-					<span class="text-[40px] font-black leading-none">150</span>
-					<span class="text-[14px] font-bold text-white/90">credits</span>
-				</div>
-				<span class="text-[11px] text-white/70 font-medium mb-6 relative z-10"
-					>= 75 free practice questions</span
-				>
+					<!-- Abstract background glow -->
+					<div
+						class="absolute -right-6 -top-6 w-32 h-32 bg-white/10 rounded-full blur-2xl pointer-events-none transition-opacity duration-500"
+					></div>
 
-				<div class="grid grid-cols-2 gap-2 relative z-10">
-					{#each summaryStats as stat}
-						<div
-							class="bg-black/10 rounded-lg p-3 group transition-colors hover:bg-black/20"
+					<div class="flex items-center justify-between relative z-10 mb-6">
+						<!-- Left Arrow -->
+						<button
+							class="w-10 h-10 flex items-center justify-center rounded-full bg-black/10 hover:bg-black/20 border border-white/10 transition-colors"
+							onclick={() =>
+								(conversionTab =
+									conversionTab === "cash" ? "practice" : "cash")}
 						>
-							<span class="block text-[16px] font-bold mb-0.5 mt-0.5"
-								>{stat.value}</span
+							<ChevronLeft class="w-5 h-5 text-white" />
+						</button>
+
+						<!-- Center Title Area -->
+						<div class="flex flex-col items-center text-center px-4">
+							<span
+								class="text-[10px] font-bold text-white/70 uppercase tracking-widest mb-1.5 block"
 							>
-							<span class="text-[10px] text-white/70 font-medium"
-								>{stat.label}</span
-							>
+								{conversionTab === "cash"
+									? "Option 01 • Withdrawal"
+									: "Option 02 • Conversion"}
+							</span>
+							<h4 class="text-[20px] font-black text-white leading-tight">
+								{conversionTab === "cash" ? "Cash Payout" : "Practice Credits"}
+							</h4>
 						</div>
-					{/each}
+
+						<!-- Right Arrow -->
+						<button
+							class="w-10 h-10 flex items-center justify-center rounded-full bg-black/10 hover:bg-black/20 border border-white/10 transition-colors"
+							onclick={() =>
+								(conversionTab =
+									conversionTab === "cash" ? "practice" : "cash")}
+						>
+							<ChevronRight class="w-5 h-5 text-white" />
+						</button>
+					</div>
+
+					<div class="flex items-center justify-between relative z-10">
+						<div
+							class="bg-black/20 border border-white/10 rounded-lg px-3 py-1.5 flex items-center gap-2"
+						>
+							<span
+								class="text-[10px] font-bold text-white/80 uppercase tracking-wider"
+								>Available</span
+							>
+							<div class="flex items-baseline gap-1 text-white">
+								<span class="text-[16px] font-black leading-none">50</span>
+								<span class="text-[10px] font-bold opacity-80">credits</span>
+							</div>
+						</div>
+
+						{#if conversionTab === "cash"}
+							<Badge
+								variant="outline"
+								class="bg-black/20 border-white/10 text-white font-bold text-[9px] uppercase px-2 py-1"
+								>+ ₦2 / credit</Badge
+							>
+						{:else}
+							<Badge
+								variant="outline"
+								class="bg-black/20 border-white/10 text-white font-bold text-[9px] uppercase px-2 py-1"
+								>+ 10% bonus</Badge
+							>
+						{/if}
+					</div>
+				</div>
+
+				<div
+					class="flex flex-col w-full relative bg-white transition-all duration-300"
+				>
+					{#if conversionTab === "cash"}
+						<div
+							in:fly={{ x: -20, duration: 300, delay: 100 }}
+							out:fly={{ x: -20, duration: 200 }}
+							class="flex flex-col w-full"
+						>
+							<!-- Cash Content -->
+							<div class="p-5 flex flex-col gap-5 bg-white">
+								<!-- Credits to withdraw -->
+								<div class="flex flex-col gap-2">
+									<span
+										class="text-[10px] font-bold text-slate-400 uppercase tracking-widest"
+										>Credits to Withdraw</span
+									>
+									<div class="relative w-full">
+										<Input
+											placeholder="Enter amount of credits..."
+											class="h-10 pl-4 pr-16 bg-slate-50 border-slate-200 rounded-xl font-normal placeholder:font-normal text-slate-800 text-[13px]"
+										/>
+										<div
+											class="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-1 text-[10px] font-bold text-brand pointer-events-none"
+										>
+											<Check class="w-3 h-3" stroke-width={3} /> Valid
+										</div>
+									</div>
+								</div>
+
+								<!-- Conversion Arrow Box -->
+								<div
+									class="flex items-center justify-between p-4 bg-slate-50 border border-slate-100 rounded-xl border-dashed"
+								>
+									<div class="flex flex-col">
+										<span
+											class="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1"
+											>You Convert</span
+										>
+										<div class="flex items-baseline gap-1">
+											<span
+												class="text-[20px] font-black text-slate-800 leading-none"
+												>50</span
+											>
+											<span class="text-[11px] font-medium text-slate-500"
+												>credits</span
+											>
+										</div>
+									</div>
+									<ArrowRight class="w-4 h-4 text-slate-300 shrink-0" />
+									<div class="flex flex-col items-end">
+										<span
+											class="text-[9px] font-bold text-brand uppercase tracking-wider mb-1"
+											>You Receive</span
+										>
+										<div class="flex items-baseline gap-1 text-brand">
+											<span class="text-[20px] font-black leading-none"
+												>₦100</span
+											>
+											<span class="text-[11px] font-bold">Naira</span>
+										</div>
+									</div>
+								</div>
+
+								<!-- Bank Details -->
+								<div class="flex flex-col gap-4">
+									<div class="flex flex-col gap-1.5">
+										<span
+											class="text-[10px] font-bold text-slate-400 uppercase tracking-widest"
+											>Account Name</span
+										>
+										<Input
+											placeholder="Full Name on Account"
+											class="h-10 bg-slate-50 border-slate-200 rounded-xl font-normal placeholder:font-normal text-slate-800 text-[13px]"
+										/>
+									</div>
+									<div class="flex flex-col gap-1.5">
+										<span
+											class="text-[10px] font-bold text-slate-400 uppercase tracking-widest"
+											>Account Number</span
+										>
+										<div class="flex">
+											<Input
+												placeholder="0123456789"
+												class="h-10 bg-slate-50 border-slate-200 rounded-xl font-normal placeholder:font-normal text-slate-800 text-[13px] tracking-widest flex-1"
+											/>
+										</div>
+									</div>
+								</div>
+
+								<!-- Info Box -->
+								<div
+									class="bg-amber-50 border border-amber-100 rounded-xl p-3 flex gap-3 items-start mt-1"
+								>
+									<Clock class="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+									<p
+										class="text-[10px] text-amber-800 font-medium leading-relaxed"
+									>
+										<span class="font-bold">Payout in 1-3 working days.</span> Minimum
+										withdrawal is 50 credits (₦100). Credits will be deducted immediately
+										on request. You will receive an SMS + email confirmation.
+									</p>
+								</div>
+
+								<!-- Action -->
+								<div class="mt-2 flex flex-col gap-2">
+									<Button
+										class="w-full h-11 bg-brand hover:bg-[#2e550d] text-white rounded-xl font-bold text-[13px] shadow-sm shadow-brand/20 transition-all flex items-center justify-center gap-2"
+									>
+										<Banknote class="w-4 h-4" /> Request Cash Withdrawal <ArrowRight
+											class="w-4 h-4 opacity-70"
+										/>
+									</Button>
+									<div
+										class="flex items-center justify-center gap-1.5 text-[9px] font-semibold text-slate-400"
+									>
+										<ShieldCheck class="w-3 h-3 text-brand" /> Secured via Paystack
+										• Min. 50 credits
+									</div>
+								</div>
+							</div>
+						</div>
+					{:else}
+						<div
+							in:fly={{ x: 20, duration: 300, delay: 100 }}
+							out:fly={{ x: 20, duration: 200 }}
+							class="flex flex-col w-full relative -top-[100%] h-0 lg:h-auto lg:static"
+						>
+							<!-- Practice Content -->
+							<div class="p-5 flex flex-col gap-5 bg-white">
+								<!-- Bonus Banner -->
+								<div
+									class="flex items-center justify-between p-3 bg-blue-50 border border-blue-100 rounded-xl"
+								>
+									<div class="flex items-center gap-3">
+										<div
+											class="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center"
+										>
+											<Gift class="w-4 h-4 text-[#1d4ed8]" />
+										</div>
+										<div class="flex flex-col">
+											<span class="text-[11px] font-bold text-[#1d4ed8]"
+												>10% Conversion Bonus!</span
+											>
+											<span class="text-[9px] font-medium text-blue-600/80"
+												>Convert 100 credits -> get 110 practice credits</span
+											>
+										</div>
+									</div>
+									<Badge
+										variant="default"
+										class="bg-[#1d4ed8] hover:bg-[#1e40af] text-white text-[10px] font-bold px-2 py-0.5 rounded-lg shadow-none"
+										>+10%</Badge
+									>
+								</div>
+
+								<div class="flex flex-col gap-2">
+									<span
+										class="text-[10px] font-bold text-slate-400 uppercase tracking-widest"
+										>Credits to Convert</span
+									>
+									<div class="relative w-full">
+										<Input
+											placeholder="Enter amount of credits to convert..."
+											class="h-10 pl-4 pr-16 bg-slate-50 border-slate-200 rounded-xl font-normal placeholder:font-normal text-slate-800 text-[13px]"
+										/>
+										<div
+											class="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-1 text-[10px] font-bold text-[#1d4ed8] pointer-events-none"
+										>
+											<Check class="w-3 h-3" stroke-width={3} /> Valid
+										</div>
+									</div>
+								</div>
+
+								<!-- Conversion Arrow Box -->
+								<div
+									class="flex items-center justify-between p-4 bg-slate-50 border border-slate-100 rounded-xl border-dashed"
+								>
+									<div class="flex flex-col">
+										<span
+											class="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1"
+											>You Convert</span
+										>
+										<div class="flex items-baseline gap-1">
+											<span
+												class="text-[20px] font-black text-slate-800 leading-none"
+												>50</span
+											>
+											<span class="text-[11px] font-medium text-slate-500"
+												>ref credits</span
+											>
+										</div>
+									</div>
+									<ArrowRight class="w-4 h-4 text-slate-300 shrink-0" />
+									<div class="flex flex-col items-end">
+										<span
+											class="text-[9px] font-bold text-[#1d4ed8] uppercase tracking-wider mb-1"
+											>You Receive</span
+										>
+										<div class="flex items-baseline gap-1 text-[#1d4ed8]">
+											<span class="text-[20px] font-black leading-none">55</span
+											>
+											<span class="text-[11px] font-bold">practice credits</span
+											>
+										</div>
+									</div>
+								</div>
+
+								<!-- Benefits Grid -->
+								<div class="grid grid-cols-2 gap-2 mt-1">
+									<div
+										class="bg-blue-50/50 border border-blue-100/50 rounded-lg p-2.5 flex items-start gap-2.5"
+									>
+										<BookOpen class="w-4 h-4 text-[#1e3a8a] mt-0.5 shrink-0" />
+										<div class="flex flex-col">
+											<span class="text-[11px] font-bold text-[#1e3a8a]"
+												>Unlimited subjects</span
+											>
+											<span
+												class="text-[9px] font-medium text-blue-600/70 leading-tight mt-0.5"
+												>Use on JAMB, WAEC, NECO & Post-UTME</span
+											>
+										</div>
+									</div>
+									<div
+										class="bg-blue-50/50 border border-blue-100/50 rounded-lg p-2.5 flex items-start gap-2.5"
+									>
+										<Zap class="w-4 h-4 text-[#1e3a8a] mt-0.5 shrink-0" />
+										<div class="flex flex-col">
+											<span class="text-[11px] font-bold text-[#1e3a8a]"
+												>Instant top-up</span
+											>
+											<span
+												class="text-[9px] font-medium text-blue-600/70 leading-tight mt-0.5"
+												>Credits added to wallet in seconds</span
+											>
+										</div>
+									</div>
+									<div
+										class="bg-blue-50/50 border border-blue-100/50 rounded-lg p-2.5 flex items-start gap-2.5"
+									>
+										<Target class="w-4 h-4 text-[#1e3a8a] mt-0.5 shrink-0" />
+										<div class="flex flex-col">
+											<span class="text-[11px] font-bold text-[#1e3a8a]"
+												>Mock exams</span
+											>
+											<span
+												class="text-[9px] font-medium text-blue-600/70 leading-tight mt-0.5"
+												>Access full timed mock tests</span
+											>
+										</div>
+									</div>
+									<div
+										class="bg-blue-50/50 border border-blue-100/50 rounded-lg p-2.5 flex items-start gap-2.5"
+									>
+										<Infinity class="w-4 h-4 text-[#1e3a8a] mt-0.5 shrink-0" />
+										<div class="flex flex-col">
+											<span class="text-[11px] font-bold text-[#1e3a8a]"
+												>Never expires</span
+											>
+											<span
+												class="text-[9px] font-medium text-blue-600/70 leading-tight mt-0.5"
+												>Practice credits have no time limit</span
+											>
+										</div>
+									</div>
+								</div>
+
+								<!-- Action -->
+								<div class="mt-2 flex flex-col gap-2">
+									<Button
+										class="w-full h-11 bg-[#1359a0] hover:bg-[#0f4780] text-white rounded-xl font-bold text-[13px] shadow-sm shadow-blue-500/20 transition-all flex items-center justify-center gap-2"
+									>
+										<Zap class="w-4 h-4" /> Convert to Practice Credits <ArrowRight
+											class="w-4 h-4 opacity-70"
+										/>
+									</Button>
+									<div
+										class="flex items-center justify-center gap-1.5 text-[9px] font-semibold text-slate-400"
+									>
+										<Zap class="w-3 h-3 text-[#1359a0]" /> Instant • Min. 10 credits
+										• No fees
+									</div>
+								</div>
+							</div>
+						</div>
+					{/if}
 				</div>
 			</div>
-
-			<!-- Leaderboard Card -->
-			<Card.Root
-				class="border-slate-200 shadow-sm overflow-hidden flex flex-col justify-center bg-white h-fit rounded-2xl"
-			>
-				<Card.Header
-					class="pb-0.5 px-5 pt-2 flex flex-row items-center justify-between"
-				>
-					<Card.Title class="text-[13px] font-extrabold text-slate-800"
-						>Top referrers this month</Card.Title
-					>
-				</Card.Header>
-				<Card.Content class="px-5 pb-3">
-					<div class="flex flex-col gap-0.5 mt-1">
-						{#each leaderboard as entry}
-							{@render leaderboardRow(entry)}
-						{/each}
-					</div>
-				</Card.Content>
-			</Card.Root>
 		</div>
 	</div>
 </div>

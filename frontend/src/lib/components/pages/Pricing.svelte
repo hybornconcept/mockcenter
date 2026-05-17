@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Check, Coins, Sparkle, Crown, ChevronRight } from "lucide-svelte";
+	import { Check, Coins, Sparkle, Crown, ChevronRight } from "@lucide/svelte";
 	import * as Card from "$lib/components/ui/card/index.js";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import { Badge } from "$lib/components/ui/badge/index.js";

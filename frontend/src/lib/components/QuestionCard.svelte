@@ -17,7 +17,7 @@
 		ArrowRight,
 		Eraser,
 		TriangleAlert,
-	} from "lucide-svelte";
+	} from "@lucide/svelte";
 
 	let {
 		question,
@@ -129,7 +129,7 @@
 						</div>
 					{/if}
 					{#if question.imageUrl}
-						{@const imgSrc = question.imageUrl.startsWith('http') ? question.imageUrl : `/images/${question.imageUrl}`}
+						{@const imgSrc = question.imageUrl.startsWith('http') || question.imageUrl.startsWith('/') ? question.imageUrl : `/images/${question.imageUrl}`}
 						<div class="rounded-lg overflow-hidden flex justify-center bg-white p-2 shadow-sm border border-brand/10">
 							<img src={imgSrc} alt="Reference Material" class="max-w-full max-h-[350px] object-contain rounded-md" />
 						</div>
@@ -142,7 +142,7 @@
 				style="font-size: {fontSize}px"
 			>
 				{#each question.text.split("\n\n") as paragraph}
-					<p class="mb-2 last:mb-0">{paragraph}</p>
+					<p class="mb-2 last:mb-0">{@html paragraph}</p>
 				{/each}
 			</div>
 		</div>
@@ -183,7 +183,7 @@
 								{String.fromCharCode(65 + idx)}
 							</span>
 
-							<span>{option.body ?? option}</span>
+							<span>{@html option.body ?? option}</span>
 
 							<div
 								class="ml-auto flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"

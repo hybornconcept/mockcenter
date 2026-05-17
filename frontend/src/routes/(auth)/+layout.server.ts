@@ -2,7 +2,7 @@ import { redirect } from '@sveltejs/kit';
 import type { LayoutServerLoad } from './$types';
 
 export const load: LayoutServerLoad = async ({ locals, url }) => {
-  const user = locals.user as any;
+  const user = await locals.getUser() as any;
 
   // Allow /register page to be visited by any user — Google OAuth users land here
   // to complete onboarding profile in the old flow. New flow sends them to /onboarding.

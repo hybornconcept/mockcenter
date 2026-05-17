@@ -12,7 +12,7 @@
 		MoreVertical,
 		Brain,
 		X,
-	} from "lucide-svelte";
+	} from "@lucide/svelte";
 	import { fly, fade } from "svelte/transition";
 	import { flip } from "svelte/animate";
 	import { Button } from "$lib/components/ui/button";
@@ -22,6 +22,7 @@
 	import { Label } from "$lib/components/ui/label";
 	import * as Select from "$lib/components/ui/select";
 	import * as Tabs from "$lib/components/ui/tabs";
+	import Empty from "$lib/components/Empty.svelte";
 	import { cn } from "$lib/utils";
 
 	let { data } = $props();
@@ -353,6 +354,10 @@
 							{/each}
 						</div>
 					</div>
+				{:else}
+					<div class="mt-8">
+						<Empty title="No notifications" message="You're all caught up! There are no notifications to display." />
+					</div>
 				{/each}
 			</div>
 
@@ -465,6 +470,8 @@
 										>{reminder.time}</span
 									>
 								</div>
+							{:else}
+								<Empty title="No reminders" message="You have no upcoming reminders." compact />
 							{/each}
 						</div>
 					</CardContent>

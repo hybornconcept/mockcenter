@@ -21,21 +21,52 @@
 		Image as ImageIcon,
 		Upload,
 		ShieldCheck,
+		Gift,
 	} from "@lucide/svelte";
 	import { page } from "$app/stores";
-	import { goto } from "$app/navigation";
+	import { goto, onNavigate } from "$app/navigation";
 	import "../layout.css";
 	import * as Sidebar from "$lib/components/ui/sidebar/index.js";
 	import * as DropdownMenu from "$lib/components/ui/dropdown-menu/index.js";
 	import Confirmation from "$lib/components/Confirmation.svelte";
 	import { authClient } from "$lib/auth-client.js";
 
+	onNavigate((navigation) => {
+		if (!document.startViewTransition) return;
+
+		return new Promise((resolve) => {
+			document.startViewTransition(async () => {
+				resolve();
+				await navigation.complete;
+			});
+		});
+	});
+
 	let { children } = $props();
 	let isExpanded = $state(true);
 	let showLogoutModal = $state(false);
 	let loggingOut = $state(false);
+	let showOnboardingPrompt = $state(false);
 
 	let isAdminView = $derived($page.url.pathname.startsWith("/admin"));
+
+	function handleAppInteraction(e: MouseEvent) {
+		if ($page.data.user && !$page.data.user.isAdmin && !$page.data.user.targetExam) {
+			// Do not intercept if already on the onboarding page
+			if ($page.url.pathname.startsWith("/onboarding") || $page.url.pathname.startsWith("/onboard")) return;
+			
+			if (showOnboardingPrompt) return;
+			if (showLogoutModal) return;
+			
+			const target = e.target as HTMLElement;
+			// Allow logout clicks to pass through
+			if (target.closest('button[title="Log Out"]') || target.closest('div[role="menuitem"]')?.textContent?.includes('Log out')) return;
+
+			e.stopPropagation();
+			e.preventDefault();
+			showOnboardingPrompt = true;
+		}
+	}
 
 	async function handleLogout() {
 		loggingOut = true;
@@ -58,16 +89,16 @@
 			active: "/dashboard",
 		},
 		{
-			href: "/questions",
-			label: "Questions",
-			icon: Library,
-			active: "/questions",
-		},
-		{
 			href: "/start_practice",
 			label: "Start Practice",
 			icon: Play,
 			active: "/start_practice",
+		},
+		{
+			href: "/profile",
+			label: "Profile",
+			icon: User,
+			active: "/profile",
 		},
 	];
 
@@ -81,8 +112,9 @@
 		},
 	];
 
-	const earnLinks = [
-		{ href: "/referrals", label: "Refer & Earn", icon: PieChart },
+	const utilityLinks = [
+		{ href: "/buy_credits", label: "Buy Credits", icon: CreditCard },
+		{ href: "/referrals", label: "Referral Bonus", icon: Gift },
 		{ href: "/bookmarks", label: "Bookmarks", icon: Bookmark },
 		{
 			href: "/notifications",
@@ -143,6 +175,8 @@
 		{ href: "/admin/settings", label: "Settings", icon: Settings },
 	];
 </script>
+
+<svelte:window onclickcapture={handleAppInteraction} />
 
 {#snippet sidebarSection(title: string, links: any[])}
 	<div class="flex flex-col gap-0.5">
@@ -219,7 +253,7 @@
 			? 'w-[230px] min-w-[230px]'
 			: 'w-[80px] min-w-[80px]'} group/sidebar p-0 m-0"
 	>
-		<Sidebar.Content class="bg-transparent p-0 m-0 h-full flex flex-col gap-0">
+		<Sidebar.Content class="bg-transparent p-0 m-0 h-full flex flex-col gap-0 overflow-y-auto custom-scrollbar">
 			<div
 				class="py-6 flex items-center sticky top-0 bg-white z-10 px-5 {isExpanded
 					? 'justify-between'
@@ -281,7 +315,7 @@
 				{:else}
 					{@render sidebarSection("MAIN", mainLinks)}
 					{@render sidebarSection("PERFORMANCE", performanceLinks)}
-					{@render sidebarSection("EARN", earnLinks)}
+					{@render sidebarSection("UTILITIES", utilityLinks)}
 				{/if}
 
 				<!-- LOGOUT -->
@@ -301,7 +335,7 @@
 				<!-- Credit Balance Widget (App only) -->
 				{#if !isAdminView}
 					<div
-						class="mt-auto mb-[25vh] translate-y-[10px] {isExpanded
+						class="mt-auto mb-6 translate-y-[10px] {isExpanded
 							? '-px-2'
 							: 'px-3'} transition-all duration-300"
 					>
@@ -318,17 +352,18 @@
 									<div class="flex items-baseline gap-2 mb-2">
 										<span
 											class="text-2xl font-black tracking-tighter text-white leading-none"
-											>240</span
+											>{$page.data.user?.creditBalance ?? 0}</span
 										>
 										<span class="text-[12px] font-bold text-white/80"
 											>credits</span
 										>
 									</div>
 									<p class="text-[10px] text-white/70 font-semibold mb-2">
-										~120 questions remaining
+										~{Math.floor(($page.data.user?.creditBalance ?? 0) / 2)} questions remaining
 									</p>
 									<button
 										class="w-full bg-white hover:bg-slate-50 text-[#0b3b6c] text-xs font-bold py-2 rounded-full transition-all hover:scale-[1.02] active:scale-[0.98] shadow-sm"
+										onclick={() => goto('/buy_credits')}
 										>+ Buy More Credits</button
 									>
 								</div>
@@ -469,13 +504,19 @@
 							{/if}
 						</p>
 					{:else}
-						<h2 class="text-[20px] font-bold text-[#141522] tracking-tight">
+						<h2 class="text-[24px] font-black text-[#141522] tracking-tight leading-none">
 							{#if $page.url.pathname === "/results"}
 								My Results
 							{:else if $page.url.pathname === "/analytics"}
 								Analytics
 							{:else if $page.url.pathname === "/bookmarks"}
 								Bookmarks
+							{:else if $page.url.pathname === "/profile"}
+								Profile
+							{:else if $page.url.pathname === "/buy_credits"}
+								Buy Credits
+							{:else if $page.url.pathname === "/referrals"}
+								Referral Bonus
 							{:else}
 								<span class="font-light italic text-slate-400"
 									>Good morning,</span
@@ -484,13 +525,19 @@
 							{/if}
 						</h2>
 						<div
-							class="flex items-center gap-1.5 text-[11px] font-medium text-gray-400 mt-1"
+							class="flex items-center gap-1.5 text-[12px] font-medium text-gray-400 mt-1.5"
 						>
 							{#if $page.url.pathname === "/analytics"}
 								<span
 									>Deep dive into your performance trends, speed, and AI-powered
 									insights</span
 								>
+							{:else if $page.url.pathname === "/profile"}
+								<span>View all your profile details here.</span>
+							{:else if $page.url.pathname === "/buy_credits"}
+								<span>Get more credits to continue your practice sessions.</span>
+							{:else if $page.url.pathname === "/referrals"}
+								<span>Invite friends and earn bonus credits for your sessions.</span>
 							{:else}
 								<span
 									>{new Date().toLocaleDateString("en-GB", {
@@ -506,6 +553,10 @@
 										Your detailed performance analytics
 									{:else if $page.url.pathname === "/bookmarks"}
 										Questions you saved for later review
+									{:else if $page.url.pathname === "/buy_credits"}
+										Power your practice with more credits
+									{:else if $page.url.pathname === "/referrals"}
+										Earn rewards for every successful invite
 									{:else}
 										Keep pushing, your exam is close!
 									{/if}
@@ -523,7 +574,7 @@
 						class="flex items-center gap-2.5 px-3 py-2 rounded-lg border-2 border-brand/5"
 					>
 						<CreditCard class="w-4 h-4 text-brand" stroke-width={1.2} />
-						<span class="text-[12px] font-bold text-brand">240 credits</span>
+						<span class="text-[12px] font-bold text-brand">{$page.data.user?.creditBalance ?? 0} credits</span>
 					</div>
 				{/if}
 
@@ -662,6 +713,22 @@
 	confirmBtnClass="bg-[#e44d4d] hover:bg-[#d43d3d] shadow-lg shadow-red-500/20 text-white"
 	disabled={loggingOut}
 	onConfirm={handleLogout}
+/>
+
+<Confirmation
+	bind:open={showOnboardingPrompt}
+	title="Profile Incomplete"
+	description="You need to complete your profile to access all features. Would you like to do that now?"
+	confirmText="Go to Onboarding"
+	cancelText="Cancel"
+	icon={Sparkles}
+	iconColorClass="text-brand"
+	iconBgClass="bg-brand/10"
+	confirmBtnClass="bg-brand hover:bg-brand-dark text-white shadow-lg shadow-brand/20"
+	onConfirm={() => {
+		showOnboardingPrompt = false;
+		goto('/onboarding');
+	}}
 />
 
 <style>

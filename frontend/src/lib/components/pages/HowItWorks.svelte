@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Rocket } from "lucide-svelte";
+	import { Rocket } from "@lucide/svelte";
 
 	const steps = [
 		{

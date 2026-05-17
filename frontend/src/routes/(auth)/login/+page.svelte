@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { slide, fly } from "svelte/transition";
 	import { cubicOut } from "svelte/easing";
-	import { Eye, EyeOff, LoaderCircle, Mail, Sparkles } from "lucide-svelte";
+	import { Eye, EyeOff, LoaderCircle, Mail, Sparkles } from "@lucide/svelte";
 	import { Button } from "$lib/components/ui/button";
 	import { Input } from "$lib/components/ui/input";
 	import * as Form from "$lib/components/ui/form/index.js";

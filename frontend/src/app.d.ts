@@ -5,6 +5,7 @@ declare global {
 		// interface Error {}
 		interface Locals {
 			user: Record<string, unknown> | null;
+			getUser: () => Promise<Record<string, unknown> | null>;
 		}
 		// interface PageData {}
 		// interface PageState {}

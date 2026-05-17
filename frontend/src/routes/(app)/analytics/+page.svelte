@@ -10,12 +10,15 @@
 		ShieldAlert,
 		BrainCircuit,
 		AlertCircle,
+		BarChart3,
+		PieChart,
 	} from "@lucide/svelte";
 	import { Badge } from "$lib/components/ui/badge/index.js";
 	import * as Chart from "$lib/components/ui/chart/index.js";
 	import * as Select from "$lib/components/ui/select/index.js";
 	import { Trendchart, Barchart } from "$lib/components";
 	import { Radials } from "$lib/components/ui/radials/index.js";
+	import Empty from "$lib/components/Empty.svelte";
 
 	let { data } = $props();
 
@@ -333,19 +336,30 @@
 					</Select.Content>
 				</Select.Root>
 			</div>
-			<Trendchart
-				config={trendChartConfig}
-				data={trendChartData}
-				x="date"
-				series={[
-					{
-						key: "score",
-						label: "Score",
-						color: trendChartConfig.score.color,
-					},
-				]}
-				class="h-[230px]"
-			/>
+			{#if trendChartData.length > 0}
+				<Trendchart
+					config={trendChartConfig}
+					data={trendChartData}
+					x="date"
+					series={[
+						{
+							key: "score",
+							label: "Score",
+							color: trendChartConfig.score.color,
+						},
+					]}
+					class="h-[230px]"
+				/>
+			{:else}
+				<div class="h-[230px] flex items-center justify-center">
+					<Empty 
+						title="No score trend data" 
+						message="Keep practicing! We'll start plotting your progress as soon as you complete a few sessions." 
+						icon={TrendingUp}
+						compact 
+					/>
+				</div>
+			{/if}
 		</div>
 
 		<!-- Subject Balance — Custom SVG Radar (reliable per-subject tooltip) -->
@@ -357,102 +371,113 @@
 				<span class="text-[11px] font-semibold text-brand">AI breakdown</span>
 			</div>
 
-			<div class="relative mt-2 flex-1" bind:this={radarEl}>
-				<svg viewBox="0 0 400 400" class="w-full h-[260px] drop-shadow-sm">
-					<!-- Pentagon grid rings -->
-					{#each [20, 40, 60, 80, 100] as lvl}
+			{#if data.radarData.length > 0}
+				<div class="relative mt-2 flex-1" bind:this={radarEl}>
+					<svg viewBox="0 0 400 400" class="w-full h-[260px] drop-shadow-sm">
+						<!-- Pentagon grid rings -->
+						{#each [20, 40, 60, 80, 100] as lvl}
+							<polygon
+								points={rGrid(lvl, data.radarData.length)}
+								fill="none" stroke="#e2e8f0" stroke-width="1"
+							/>
+						{/each}
+						<!-- Spokes -->
+						{#each data.radarData as _, i}
+							{@const [sx, sy] = rPt(100, i, data.radarData.length)}
+							<line x1={RC} y1={RC} x2={sx} y2={sy} stroke="#e2e8f0" stroke-width="1" />
+						{/each}
+						<!-- top10 polygon (back layer) -->
 						<polygon
-							points={rGrid(lvl, data.radarData.length)}
-							fill="none" stroke="#e2e8f0" stroke-width="1"
+							points={rPoly('top10', data.radarData)}
+							fill="#60a5fa" fill-opacity="0.10"
+							stroke="#60a5fa" stroke-width="2" stroke-linejoin="round"
 						/>
-					{/each}
-					<!-- Spokes -->
-					{#each data.radarData as _, i}
-						{@const [sx, sy] = rPt(100, i, data.radarData.length)}
-						<line x1={RC} y1={RC} x2={sx} y2={sy} stroke="#e2e8f0" stroke-width="1" />
-					{/each}
-					<!-- top10 polygon (back layer) -->
-					<polygon
-						points={rPoly('top10', data.radarData)}
-						fill="#60a5fa" fill-opacity="0.10"
-						stroke="#60a5fa" stroke-width="2" stroke-linejoin="round"
-					/>
-					<!-- you polygon (front layer) -->
-					<polygon
-						points={rPoly('you', data.radarData)}
-						fill="var(--color-brand)" fill-opacity="0.18"
-						stroke="var(--color-brand)" stroke-width="2.5" stroke-linejoin="round"
-					/>
-					<!-- Vertex dots on "you" series -->
-					{#each data.radarData as d, i}
-						{@const [dx, dy] = rPt(d.you, i, data.radarData.length)}
-						<circle cx={dx} cy={dy}
-							r={radarHovered === i ? 6.5 : 4.5}
-							fill="var(--color-brand)"
-							style="transition: r 0.15s ease"
+						<!-- you polygon (front layer) -->
+						<polygon
+							points={rPoly('you', data.radarData)}
+							fill="var(--color-brand)" fill-opacity="0.18"
+							stroke="var(--color-brand)" stroke-width="2.5" stroke-linejoin="round"
 						/>
-					{/each}
-					<!-- Subject labels -->
-					{#each data.radarData as d, i}
-						{@const [lx, ly, anchor, baseline] = rLabel(i, data.radarData.length)}
-						<text
-							x={lx} y={ly}
-							text-anchor={anchor}
-							dominant-baseline={baseline}
-							font-size="13"
-							fill={radarHovered === i ? 'var(--color-brand)' : '#8c9ead'}
-							font-weight={radarHovered === i ? '700' : '500'}
-						>{d.subject}</text>
-					{/each}
-					<!-- Transparent pie-slice overlays — one per subject, reliable hit detection -->
-					{#each data.radarData as _, i}
-						<path
-							role="presentation"
-							d={rSlice(i, data.radarData.length)}
-							fill="transparent"
-							onmouseenter={(e) => onREnter(e, i)}
-							onmousemove={onRMove}
-							onmouseleave={() => (radarHovered = null)}
-							class="cursor-pointer"
-						/>
-					{/each}
-				</svg>
+						<!-- Vertex dots on "you" series -->
+						{#each data.radarData as d, i}
+							{@const [dx, dy] = rPt(d.you, i, data.radarData.length)}
+							<circle cx={dx} cy={dy}
+								r={radarHovered === i ? 6.5 : 4.5}
+								fill="var(--color-brand)"
+								style="transition: r 0.15s ease"
+							/>
+						{/each}
+						<!-- Subject labels -->
+						{#each data.radarData as d, i}
+							{@const [lx, ly, anchor, baseline] = rLabel(i, data.radarData.length)}
+							<text
+								x={lx} y={ly}
+								text-anchor={anchor}
+								dominant-baseline={baseline}
+								font-size="13"
+								fill={radarHovered === i ? 'var(--color-brand)' : '#8c9ead'}
+								font-weight={radarHovered === i ? '700' : '500'}
+							>{d.subject}</text>
+						{/each}
+						<!-- Transparent pie-slice overlays — one per subject, reliable hit detection -->
+						{#each data.radarData as _, i}
+							<path
+								role="presentation"
+								d={rSlice(i, data.radarData.length)}
+								fill="transparent"
+								onmouseenter={(e) => onREnter(e, i)}
+								onmousemove={onRMove}
+								onmouseleave={() => (radarHovered = null)}
+								class="cursor-pointer"
+							/>
+						{/each}
+					</svg>
 
-				<!-- HTML tooltip — positioned at cursor, reads all series from radarData -->
-				{#if radarHovered !== null}
-					{@const hd = data.radarData[radarHovered]}
-					<div
-						class="pointer-events-none absolute z-50 min-w-36 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs shadow-xl"
-						style="left:{radarTipX + 14}px; top:{radarTipY}px; transform: translateY(-110%);"
-					>
-						<div class="font-semibold text-slate-800 mb-1.5">{hd.subject}</div>
-						<div class="grid gap-1.5">
-							<div class="flex items-center gap-2">
-								<div class="size-2.5 rounded-[2px] shrink-0 bg-brand"></div>
-								<span class="text-gray-500 flex-1">You</span>
-								<span class="font-mono font-semibold text-slate-800 tabular-nums">{hd.you}</span>
-							</div>
-							<div class="flex items-center gap-2">
-								<div class="size-2.5 rounded-[2px] shrink-0 bg-blue-400"></div>
-								<span class="text-gray-500 flex-1">Top 10%</span>
-								<span class="font-mono font-semibold text-slate-800 tabular-nums">{hd.top10}</span>
+					<!-- HTML tooltip — positioned at cursor, reads all series from radarData -->
+					{#if radarHovered !== null}
+						{@const hd = data.radarData[radarHovered]}
+						<div
+							class="pointer-events-none absolute z-50 min-w-36 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs shadow-xl"
+							style="left:{radarTipX + 14}px; top:{radarTipY}px; transform: translateY(-110%);"
+						>
+							<div class="font-semibold text-slate-800 mb-1.5">{hd.subject}</div>
+							<div class="grid gap-1.5">
+								<div class="flex items-center gap-2">
+									<div class="size-2.5 rounded-[2px] shrink-0 bg-brand"></div>
+									<span class="text-gray-500 flex-1">You</span>
+									<span class="font-mono font-semibold text-slate-800 tabular-nums">{hd.you}</span>
+								</div>
+								<div class="flex items-center gap-2">
+									<div class="size-2.5 rounded-[2px] shrink-0 bg-blue-400"></div>
+									<span class="text-gray-500 flex-1">Top 10%</span>
+									<span class="font-mono font-semibold text-slate-800 tabular-nums">{hd.top10}</span>
+								</div>
 							</div>
 						</div>
-					</div>
-				{/if}
-			</div>
+					{/if}
+				</div>
 
-			<!-- Legend -->
-			<div class="flex items-center justify-center gap-5 mt-3">
-				<div class="flex items-center gap-1.5">
-					<div class="w-2.5 h-2.5 rounded-[2px] bg-brand opacity-80"></div>
-					<span class="text-[10px] font-medium text-gray-600">You</span>
+				<!-- Legend -->
+				<div class="flex items-center justify-center gap-5 mt-3">
+					<div class="flex items-center gap-1.5">
+						<div class="w-2.5 h-2.5 rounded-[2px] bg-brand opacity-80"></div>
+						<span class="text-[10px] font-medium text-gray-600">You</span>
+					</div>
+					<div class="flex items-center gap-1.5">
+						<div class="w-2.5 h-2.5 rounded-[2px] bg-blue-400 opacity-60"></div>
+						<span class="text-[10px] font-medium text-gray-600">Top 10%</span>
+					</div>
 				</div>
-				<div class="flex items-center gap-1.5">
-					<div class="w-2.5 h-2.5 rounded-[2px] bg-blue-400 opacity-60"></div>
-					<span class="text-[10px] font-medium text-gray-600">Top 10%</span>
+			{:else}
+				<div class="flex-1 flex items-center justify-center py-10">
+					<Empty 
+						title="No subject data" 
+						message="Complete mock exams to visualize your subject performance profile here." 
+						icon={Target}
+						compact 
+					/>
 				</div>
-			</div>
+			{/if}
 		</div>
 	</div>
 
@@ -521,6 +546,10 @@
 							>
 						</div>
 						<div class="w-[45px] shrink-0"></div>
+					</div>
+				{:else}
+					<div class="py-4">
+						<Empty title="No data yet" message="Complete some practice sessions to see speed and accuracy tracking." compact />
 					</div>
 				{/each}
 			</div>
@@ -611,6 +640,10 @@
 							>
 						</div>
 					</div>
+				{:else}
+					<div class="py-4">
+						<Empty title="No weak topics" message="You don't have any weak topics tracked yet." compact />
+					</div>
 				{/each}
 			</div>
 		</div>
@@ -650,19 +683,30 @@
 					</Select.Content>
 				</Select.Root>
 			</div>
-			<Barchart
-				config={distChartConfig}
-				data={distChartData}
-				x="range"
-				series={[
-					{
-						key: "count",
-						label: "Sessions",
-						color: distChartConfig.count.color,
-					},
-				]}
-				class="h-[220px]"
-			/>
+			{#if distChartData.length > 0}
+				<Barchart
+					config={distChartConfig}
+					data={distChartData}
+					x="range"
+					series={[
+						{
+							key: "count",
+							label: "Sessions",
+							color: distChartConfig.count.color,
+						},
+					]}
+					class="h-[220px]"
+				/>
+			{:else}
+				<div class="h-[220px] flex items-center justify-center">
+					<Empty 
+						title="No distribution data" 
+						message="We need more session results to show how your scores are distributed." 
+						icon={BarChart3}
+						compact 
+					/>
+				</div>
+			{/if}
 		</div>
 
 		<!-- Peer Comparison -->
@@ -725,6 +769,10 @@
 							>
 								{row.vsPeers}
 							</span>
+						</div>
+					{:else}
+						<div class="py-4">
+							<Empty title="No peer data" message="Not enough data to compare with peers yet." compact />
 						</div>
 					{/each}
 				</div>

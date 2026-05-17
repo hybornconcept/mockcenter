@@ -20,14 +20,20 @@
 		Disc,
 		Bookmark,
 		Medal,
-	} from "lucide-svelte";
+	} from "@lucide/svelte";
 	import * as Card from "$lib/components/ui/card/index.js";
 	import * as Chart from "$lib/components/ui/chart/index.js";
 	import { Badge } from "$lib/components/ui/badge/index.js";
 	import * as Select from "$lib/components/ui/select/index.js";
+	import Empty from "$lib/components/Empty.svelte";
 	import PerformanceChart from "$lib/components/PerformanceChart.svelte";
+	import KpiCard from "$lib/components/KpiCard.svelte";
 
 	let { data } = $props();
+
+	// Derive countdown from server data
+	const countdown = $derived(data.examCountdown);
+	const creditBalance = $derived(data.creditBalance ?? 0);
 
 	const iconMap = {
 		ClipboardCheck,
@@ -198,7 +204,7 @@
 					<CalendarDays class="w-4 h-4 text-emerald-100" />
 					<span
 						class="text-[11px] font-bold tracking-widest uppercase text-emerald-100"
-						>JAMB 2026 Countdown</span
+						>{countdown ? `${countdown.examLabel} Countdown` : 'Exam Countdown'}</span
 					>
 				</div>
 				<h3 class="text-[18px] font-extrabold tracking-tight mb-2">
@@ -209,25 +215,29 @@
 						class="flex items-center gap-1.5 bg-black/20 px-2.5 py-1.5 rounded-lg backdrop-blur-md border border-white/10 text-[11px] font-medium"
 					>
 						<Target class="w-3.5 h-3.5 text-emerald-200" /> Target score:
-						<span class="font-bold text-white">280 / 400</span>
+						<span class="font-bold text-white">{countdown?.targetScore ?? '—'}</span>
 					</div>
 				</div>
 			</div>
 
 			<div class="flex gap-2.5 items-center mr-2">
-				{#each [{ val: "38", lbl: "Days" }, { val: "14", lbl: "Hours" }, { val: "22", lbl: "Mins" }] as t}
-					<div
-						class="flex flex-col items-center justify-center bg-white/10 border border-white/20 backdrop-blur-md rounded-xl w-14 h-16 shadow-[0_4px_12px_rgba(0,0,0,0.1)]"
-					>
-						<span class="text-[22px] font-black leading-none mb-0.5"
-							>{t.val}</span
+				{#if countdown}
+					{#each [{ val: String(countdown.days).padStart(2,'0'), lbl: 'Days' }, { val: String(countdown.hours).padStart(2,'0'), lbl: 'Hours' }, { val: String(countdown.mins).padStart(2,'0'), lbl: 'Mins' }] as t}
+						<div
+							class="flex flex-col items-center justify-center bg-white/10 border border-white/20 backdrop-blur-md rounded-xl w-14 h-16 shadow-[0_4px_12px_rgba(0,0,0,0.1)]"
 						>
-						<span
-							class="text-[9px] font-semibold text-emerald-100 uppercase tracking-widest"
-							>{t.lbl}</span
-						>
-					</div>
-				{/each}
+							<span class="text-[22px] font-black leading-none mb-0.5"
+								>{t.val}</span
+							>
+							<span
+								class="text-[9px] font-semibold text-emerald-100 uppercase tracking-widest"
+								>{t.lbl}</span
+							>
+						</div>
+					{/each}
+				{:else}
+					<div class="text-white/60 text-[12px] font-medium italic">Set your exam date to start countdown</div>
+				{/if}
 			</div>
 		</div>
 	</div>
@@ -289,7 +299,7 @@
 				<p
 					class="text-[11px] text-slate-400 font-medium max-w-[200px] leading-relaxed"
 				>
-					Your <span class="text-white font-bold">240 credits</span> = ~120 questions
+					Your <span class="text-white font-bold">{creditBalance} credits</span> = ~{Math.floor(creditBalance / 2)} questions
 					left. Top up now to continue.
 				</p>
 			</div>
@@ -342,43 +352,13 @@
 		<div class="grid grid-cols-3 gap-4">
 			{#each data.summaryCards as card}
 				{@const Icon = iconMap[card.icon as keyof typeof iconMap]}
-				<div
-					class="bg-white rounded-xl p-3.5 border border-slate-200 shadow-sm flex flex-col justify-between h-[115px] group hover:-translate-y-1 hover:shadow-lg hover:border-brand/40 hover:bg-brand-muted/20 transition-all duration-300 relative overflow-hidden antialiased"
-				>
-					{#if Icon}
-						<Icon
-							class="w-6 h-6 text-brand/10 absolute right-3 top-3 group-hover:text-brand/20 transition-colors duration-500 scale-125"
-							stroke-width={1.5}
-						/>
-					{/if}
-
-					<div class="flex items-center justify-between relative z-10">
-						<span class="text-[12px] font-medium text-gray-500 tracking-tight"
-							>{card.title}</span
-						>
-						<button class="text-gray-400/50 hover:text-brand transition-colors"
-							><MoreHorizontal class="w-3.5 h-3.5" stroke-width={2} /></button
-						>
-					</div>
-
-					<span
-						class="text-[26px] font-extrabold text-slate-800 leading-none tracking-tight group-hover:text-brand transition-colors block relative z-10"
-						>{card.value}</span
-					>
-
-					<div class="flex items-center justify-between w-full relative z-10">
-						<span
-							class="text-[10px] font-bold text-gray-400 mt-px mr-px leading-none"
-							>{card.subtext}</span
-						>
-						<Badge
-							variant="outline"
-							class="px-2 py-[2px] rounded-full text-[8px] font-bold uppercase tracking-widest leading-none text-brand-dark bg-brand-muted border-brand/20"
-						>
-							{card.trend}
-						</Badge>
-					</div>
-				</div>
+				<KpiCard
+					title={card.title}
+					value={card.value}
+					{Icon}
+					subtext={card.subtext}
+					badgeText={card.trend}
+				/>
 			{/each}
 		</div>
 
@@ -397,26 +377,35 @@
 					>
 				</div>
 				<div class="flex flex-col gap-4 mt-2">
-					{#each data.dailyChallenges as challenge}
-						<div class="flex flex-col gap-2">
-							<div class="flex justify-between items-center text-[13px]">
-								<span class="font-medium text-[#2d325a]"
-									>{challenge.subject}</span
-								>
-								<span class="font-normal text-gray-400"
-									>{challenge.current} / {challenge.total}</span
-								>
-							</div>
-							<div
-								class="h-[7px] w-full bg-gray-100 rounded-full overflow-hidden"
-							>
+					{#if data.dailyChallenges.length > 0}
+						{#each data.dailyChallenges as challenge}
+							<div class="flex flex-col gap-2">
+								<div class="flex justify-between items-center text-[13px]">
+									<span class="font-medium text-[#2d325a]"
+										>{challenge.subject}</span
+									>
+									<span class="font-normal text-gray-400"
+										>{challenge.current} / {challenge.total}</span
+									>
+								</div>
 								<div
-									class="h-full bg-{challenge.color}-600 rounded-full"
-									style="width: {(challenge.current / challenge.total) * 100}%"
-								></div>
+									class="h-[7px] w-full bg-gray-100 rounded-full overflow-hidden"
+								>
+									<div
+										class="h-full bg-{challenge.color}-600 rounded-full"
+										style="width: {(challenge.current / challenge.total) * 100}%"
+									></div>
+								</div>
 							</div>
-						</div>
-					{/each}
+						{/each}
+					{:else}
+						<Empty
+							compact={true}
+							title="No challenges today"
+							message="Come back later for new daily challenges"
+							icon={Zap}
+						/>
+					{/if}
 				</div>
 			</div>
 
@@ -438,47 +427,72 @@
 				<div
 					class="flex flex-col justify-between h-full pt-1 gap-5 pb-1 relative z-10"
 				>
-					{#each data.studyingItems as item}
-						{@const theme = themes[item.theme as keyof typeof themes]}
-						{@const Icon = iconMap[item.icon as keyof typeof iconMap]}
-						<div class="flex items-center justify-between group">
-							<div class="flex items-center gap-3.5">
-								<div
-									class="w-11 h-11 rounded-xl {theme?.bg ??
-										'bg-gray-50'} flex items-center justify-center {theme?.text ??
-										'text-gray-600'} group-hover:scale-105 {theme?.shadow ??
-										''} transition-all duration-300 border {theme?.border ??
-										'border-slate-200'}"
-								>
-									<Icon class="w-5 h-5" stroke-width={1.2} />
-								</div>
-								<div class="flex flex-col">
-									<span class="text-[13px] font-medium text-[#141522]"
-										>{item.subject}</span
+					{#if data.studyingItems.length > 0}
+						{#each data.studyingItems as item}
+							{@const theme = themes[item.theme as keyof typeof themes]}
+							{@const Icon = iconMap[item.icon as keyof typeof iconMap]}
+							<div class="flex items-center justify-between group">
+								<div class="flex items-center gap-3.5">
+									<div
+										class="w-11 h-11 rounded-xl {theme?.bg ??
+											'bg-gray-50'} flex items-center justify-center {theme?.text ??
+											'text-gray-600'} group-hover:scale-105 {theme?.shadow ??
+											''} transition-all duration-300 border {theme?.border ??
+											'border-slate-200'}"
 									>
-									<span class="text-[12px] font-normal text-gray-400 mt-px"
-										>{item.detail}</span
-									>
+										<Icon class="w-5 h-5" stroke-width={1.2} />
+									</div>
+									<div class="flex flex-col">
+										<span class="text-[13px] font-medium text-[#141522]"
+											>{item.subject}</span
+										>
+										<span class="text-[12px] font-normal text-gray-400 mt-px"
+											>{item.detail}</span
+										>
+									</div>
 								</div>
+								{#if item.type === "resume"}
+									<button
+										class="text-[11px] font-semibold text-brand hover:bg-brand-muted px-3 py-1.5 rounded-full transition-colors border border-transparent hover:border-brand/20"
+										>Resume</button
+									>
+								{:else}
+									<span class="text-[14px] font-semibold text-[#141522] mr-3"
+										>{item.score}</span
+									>
+								{/if}
 							</div>
-							{#if item.type === "resume"}
-								<button
-									class="text-[11px] font-semibold text-brand hover:bg-brand-muted px-3 py-1.5 rounded-full transition-colors border border-transparent hover:border-brand/20"
-									>Resume</button
-								>
-							{:else}
-								<span class="text-[14px] font-semibold text-[#141522] mr-3"
-									>{item.score}</span
-								>
-							{/if}
-						</div>
-					{/each}
+						{/each}
+					{:else}
+						<Empty
+							compact={true}
+							title="Nothing here yet"
+							message="Start a practice session to see your progress here"
+							icon={Play}
+						/>
+					{/if}
 				</div>
 			</div>
 		</div>
 
 		<!-- Subject Performance Bar Chart -->
-		<PerformanceChart subjectPerformance={data.subjectPerformance} />
+		{#if data.subjectPerformance.length > 0}
+			<PerformanceChart subjectPerformance={data.subjectPerformance} />
+		{:else}
+			<div class="bg-white rounded-xl p-4 border border-slate-200 shadow-sm flex flex-col hover:border-brand/40 hover:shadow-lg transition-all duration-300">
+				<div class="flex flex-col mb-4">
+					<h3 class="text-[15px] font-bold text-[#141522]">Subject Performance</h3>
+					<p class="text-[11px] font-medium text-gray-400 mt-0.5">
+						Comparison between your scores and platform average.
+					</p>
+				</div>
+				<Empty
+					title="No performance data"
+					message="Complete a practice session to see your subject performance"
+					icon={TrendingUp}
+				/>
+			</div>
+		{/if}
 
 		<!-- Recent Activity Table -->
 		<div
@@ -497,72 +511,80 @@
 				>
 			</div>
 			<div class="overflow-x-auto">
-				<table class="w-full text-left border-collapse min-w-[600px]">
-					<thead>
-						<tr class="border-b border-slate-200">
-							<th class="py-2 px-2 text-xs font-semibold text-[#8A92A6] w-10"
-								>#</th
-							>
-							<th class="py-2 px-2 text-xs font-semibold text-[#8A92A6]"
-								>Activity</th
-							>
-							<th class="py-2 px-2 text-xs font-semibold text-[#8A92A6]"
-								>Subject</th
-							>
-							<th class="py-2 px-2 text-xs font-semibold text-[#8A92A6]"
-								>Score</th
-							>
-							<th class="py-2 px-2 text-xs font-semibold text-[#8A92A6]"
-								>Credits</th
-							>
-							<th class="py-2 px-2 text-xs font-semibold text-[#8A92A6]"
-								>Time</th
-							>
-						</tr>
-					</thead>
-					<tbody>
-						{#each data.recentActivity as item}
-							{@const Icon = iconMap[item.icon as keyof typeof iconMap]}
-							<tr
-								class="border-b border-gray-50 last:border-b-0 group transition-colors hover:bg-gray-50/50"
-							>
-								<td class="py-2.5 px-2">
-									<div
-										class="w-7 h-7 rounded-lg bg-slate-50 flex items-center justify-center text-slate-400 group-hover:text-brand group-hover:bg-brand-muted transition-all duration-300"
-									>
-										<Icon class="w-3.5 h-3.5" />
-									</div>
-								</td>
-								<td class="py-2.5 px-2 text-[13px] font-bold text-[#141522]"
-									>{item.activity}</td
+				{#if data.recentActivity.length > 0}
+					<table class="w-full text-left border-collapse min-w-[600px]">
+						<thead>
+							<tr class="border-b border-slate-200">
+								<th class="py-2 px-2 text-xs font-semibold text-[#8A92A6] w-10"
+									>#</th
 								>
-								<td class="py-2.5 px-2 text-[12px] font-medium text-[#141522]"
-									>{item.subject}</td
+								<th class="py-2 px-2 text-xs font-semibold text-[#8A92A6]"
+									>Activity</th
 								>
-								<td class="py-2.5 px-2 text-[12px] font-bold text-[#141522]"
-									>{item.score}</td
+								<th class="py-2 px-2 text-xs font-semibold text-[#8A92A6]"
+									>Subject</th
 								>
-								<td class="py-2.5 px-2">
-									<span
-										class="text-[12px] font-bold {item.credits.startsWith('+')
-											? 'text-emerald-600'
-											: 'text-slate-600'}"
-									>
-										{item.credits}
-									</span>
-								</td>
-								<td class="py-2.5 px-2">
-									<Badge
-										variant="outline"
-										class="text-[10px] border-transparent font-bold text-{item.timeColor}-600 bg-{item.timeColor}-50 px-2 py-0.5 rounded-md hover:bg-{item.timeColor}-50 whitespace-nowrap"
-									>
-										{item.time}
-									</Badge>
-								</td>
+								<th class="py-2 px-2 text-xs font-semibold text-[#8A92A6]"
+									>Score</th
+								>
+								<th class="py-2 px-2 text-xs font-semibold text-[#8A92A6]"
+									>Credits</th
+								>
+								<th class="py-2 px-2 text-xs font-semibold text-[#8A92A6]"
+									>Time</th
+								>
 							</tr>
-						{/each}
-					</tbody>
-				</table>
+						</thead>
+						<tbody>
+							{#each data.recentActivity as item}
+								{@const Icon = iconMap[item.icon as keyof typeof iconMap]}
+								<tr
+									class="border-b border-gray-50 last:border-b-0 group transition-colors hover:bg-gray-50/50"
+								>
+									<td class="py-2.5 px-2">
+										<div
+											class="w-7 h-7 rounded-lg bg-slate-50 flex items-center justify-center text-slate-400 group-hover:text-brand group-hover:bg-brand-muted transition-all duration-300"
+										>
+											<Icon class="w-3.5 h-3.5" />
+										</div>
+									</td>
+									<td class="py-2.5 px-2 text-[13px] font-bold text-[#141522]"
+										>{item.activity}</td
+									>
+									<td class="py-2.5 px-2 text-[12px] font-medium text-[#141522]"
+										>{item.subject}</td
+									>
+									<td class="py-2.5 px-2 text-[12px] font-bold text-[#141522]"
+										>{item.score}</td
+									>
+									<td class="py-2.5 px-2">
+										<span
+											class="text-[12px] font-bold {item.credits.startsWith('+')
+												? 'text-emerald-600'
+												: 'text-slate-600'}"
+										>
+											{item.credits}
+										</span>
+									</td>
+									<td class="py-2.5 px-2">
+										<Badge
+											variant="outline"
+											class="text-[10px] border-transparent font-bold text-{item.timeColor}-600 bg-{item.timeColor}-50 px-2 py-0.5 rounded-md hover:bg-{item.timeColor}-50 whitespace-nowrap"
+										>
+											{item.time}
+										</Badge>
+									</td>
+								</tr>
+							{/each}
+						</tbody>
+					</table>
+				{:else}
+					<Empty
+						title="No recent activity"
+						message="Your study activity and results will appear here"
+						icon={Bell}
+					/>
+				{/if}
 			</div>
 		</div>
 	</div>
@@ -583,9 +605,18 @@
 			>
 		</div>
 		<div class="flex flex-col gap-2.5">
-			{#each data.leaderboard as participant}
-				{@render leaderboardRow(participant)}
-			{/each}
+			{#if data.leaderboard.length > 0}
+				{#each data.leaderboard as participant}
+					{@render leaderboardRow(participant)}
+				{/each}
+			{:else}
+				<Empty
+					compact={true}
+					title="Leaderboard empty"
+					message="Be the first to rank on the leaderboard"
+					icon={Trophy}
+				/>
+			{/if}
 		</div>
 	</div>
 </div>

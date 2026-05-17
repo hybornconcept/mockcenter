@@ -7,7 +7,7 @@ import type { LayoutServerLoad } from './$types';
  * so we just read from there — no extra HTTP round-trip needed.
  */
 export const load: LayoutServerLoad = async ({ locals }) => {
-  const user = locals.user;
+  const user = await locals.getUser();
 
   // Double-gate: hooks redirects unauthenticated/non-admin users too,
   // but explicit checks here ensure the admin shell never renders for guests.

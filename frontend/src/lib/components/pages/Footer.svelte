@@ -47,7 +47,7 @@
 				<ul class="flex flex-col gap-1.5">
 					<li><a href="/about" class="text-[11px] md:text-[12px] font-semibold text-white/60 hover:text-brand transition-colors">About us</a></li>
 					<li><a href="/blog" class="text-[11px] md:text-[12px] font-semibold text-white/60 hover:text-brand transition-colors">Blog</a></li>
-					<li><a href="/refer" class="text-[11px] md:text-[12px] font-semibold text-white/60 hover:text-brand transition-colors">Refer & Earn</a></li>
+					<li><a href="/refer" class="text-[11px] md:text-[12px] font-semibold text-white/60 hover:text-brand transition-colors">Invite Friends</a></li>
 					<li><a href="/privacy" class="text-[11px] md:text-[12px] font-semibold text-white/60 hover:text-brand transition-colors">Privacy policy</a></li>
 					<li><a href="/terms" class="text-[11px] md:text-[12px] font-semibold text-white/60 hover:text-brand transition-colors">Terms of service</a></li>
 				</ul>

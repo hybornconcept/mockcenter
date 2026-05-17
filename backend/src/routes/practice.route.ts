@@ -2,11 +2,11 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { zValidator } from "@hono/zod-validator";
 import { createDb } from "../db";
-import { practiceSessions, practiceAnswers, questions, exams, subjects } from "../db/schema";
+import { practiceSessions, practiceAnswers, questions, exams, subjects, users } from "../db/schema";
 import { requireAuth } from "../middleware/auth.middleware";
 import { QuestionService } from "../services/question.service";
 import type { Env, Variables } from "../env";
-import { eq, and, inArray } from "drizzle-orm";
+import { eq, and, inArray, sql } from "drizzle-orm";
 
 const practice = new Hono<{ Bindings: Env; Variables: Variables }>();
 
@@ -41,6 +41,14 @@ practice.post("/start", zValidator("json", startSessionSchema), async (c) => {
   // Persist question IDs so GET /:id always returns the same questions
   const questionIds = selectedQuestions.map((q) => q.id);
 
+  // Compute total credit cost for this session
+  const totalCreditCost = selectedQuestions.reduce((sum, q) => sum + (q.creditCost ?? 1), 0);
+
+  // Atomically deduct credits — floor at 0 so balance never goes negative
+  await db.update(users)
+    .set({ creditBalance: sql`greatest(0, credit_balance - ${totalCreditCost})` })
+    .where(eq(users.id, user.id));
+
   const [session] = await db.insert(practiceSessions).values({
     userId: user.id,
     examId,
@@ -55,6 +63,7 @@ practice.post("/start", zValidator("json", startSessionSchema), async (c) => {
     data: {
       session,
       questions: selectedQuestions,
+      creditCost: totalCreditCost,
     },
   });
 });
@@ -75,13 +84,14 @@ practice.post("/submit", zValidator("json", submitAnswerSchema), async (c) => {
     timeSpentSecs,
   });
 
-  // Update session stats
-  const [session] = await db.select().from(practiceSessions).where(eq(practiceSessions.id, sessionId));
-  
+  // Atomic increment — single UPDATE avoids read-then-write race conditions
+  // when the same session receives concurrent answer submits.
   await db.update(practiceSessions)
     .set({
-      answeredCount: session.answeredCount + 1,
-      correctCount: validation.isCorrect ? session.correctCount + 1 : session.correctCount,
+      answeredCount: sql`answered_count + 1`,
+      correctCount:  validation.isCorrect
+        ? sql`correct_count + 1`
+        : sql`correct_count`,
       updatedAt: new Date(),
     })
     .where(eq(practiceSessions.id, sessionId));
@@ -114,15 +124,16 @@ practice.get("/:id", async (c) => {
     ? await questionService.getQuestionsByIds(storedIds)
     : await questionService.getQuestionsForSession(session.subjectIds as string[], session.totalQuestions);
 
-  const examRecord = await db.query.exams.findFirst({
-    where: eq(exams.id, session.examId)
-  });
-  
-  const subjectRecord = Array.isArray(session.subjectIds) && session.subjectIds.length > 0
-    ? await db.query.subjects.findFirst({
-        where: eq(subjects.id, (session.subjectIds as string[])[0])
-      })
-    : null;
+  const [examRecord, subjectRecord] = await Promise.all([
+    db.query.exams.findFirst({
+      where: eq(exams.id, session.examId)
+    }),
+    Array.isArray(session.subjectIds) && session.subjectIds.length > 0
+      ? db.query.subjects.findFirst({
+          where: eq(subjects.id, (session.subjectIds as string[])[0])
+        })
+      : Promise.resolve(null)
+  ]);
 
   return c.json({ 
     success: true, 
@@ -254,10 +265,12 @@ practice.get("/:id/results", async (c) => {
     };
   });
 
-  const examRecord = await db.query.exams.findFirst({ where: eq(exams.id, session.examId) });
-  const subjectRecord = Array.isArray(session.subjectIds) && session.subjectIds.length > 0
-    ? await db.query.subjects.findFirst({ where: eq(subjects.id, (session.subjectIds as string[])[0]) })
-    : null;
+  const [examRecord, subjectRecord] = await Promise.all([
+    db.query.exams.findFirst({ where: eq(exams.id, session.examId) }),
+    Array.isArray(session.subjectIds) && session.subjectIds.length > 0
+      ? db.query.subjects.findFirst({ where: eq(subjects.id, (session.subjectIds as string[])[0]) })
+      : Promise.resolve(null)
+  ]);
 
   const score = Math.round((session.correctCount / session.totalQuestions) * 100);
 

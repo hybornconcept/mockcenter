@@ -14,21 +14,24 @@ export const practiceSessions = pgTable("practice_sessions", {
   answeredCount:   integer("answered_count").notNull().default(0),
   correctCount:    integer("correct_count").notNull().default(0),
   status:          sessionStatusEnum("status").notNull().default("active"),
-  // NOTE: only store { questionIds, totalTimeSecs, isRedemption, originalSessionId }.
-  // answerResults was removed — use practice_answers rows instead (avoids dual-write).
   resumeState:     jsonb("resume_state"),
   startedAt:       timestamp("started_at").defaultNow(),
   completedAt:     timestamp("completed_at"),
   updatedAt:       timestamp("updated_at").defaultNow(),
 }, (t) => ({
-  // FIX: every dashboard / profile fetch loads sessions by user — was a seq scan
-  userIdx:    index("ps_user_idx").on(t.userId),
-  // FIX: analytics groups sessions by exam
-  examIdx:    index("ps_exam_idx").on(t.examId),
-  // FIX: admin dashboard filters by status
-  statusIdx:  index("ps_status_idx").on(t.status),
-  // Combined for analytics window queries
+  // ── Core lookups ──────────────────────────────────────────────────────────
+  userIdx:       index("ps_user_idx").on(t.userId),
+  examIdx:       index("ps_exam_idx").on(t.examId),
+  statusIdx:     index("ps_status_idx").on(t.status),
+  // ── High-value composite indexes ──────────────────────────────────────────
+  // Combined for analytics window queries (user + status filter)
   userStatusIdx: index("ps_user_status_idx").on(t.userId, t.status),
+  // Combined for completed-session history (ordered by completedAt)
+  userStatusCompletedIdx: index("ps_user_status_completed_idx").on(t.userId, t.status, t.completedAt),
+  // ── JSONB GIN index ───────────────────────────────────────────────────────
+  // Analytics extracts first subject via (subjectIds->>'0')::uuid.
+  // GIN lets Postgres use JSONB containment operators efficiently.
+  subjectIdsGin: index("ps_subject_ids_gin").using("gin", t.subjectIds),
 }));
 
 // ─── Practice Answers ─────────────────────────────────────────────────────────
@@ -41,10 +44,9 @@ export const practiceAnswers = pgTable("practice_answers", {
   timeSpentSecs:    integer("time_spent_secs").notNull().default(0),
   answeredAt:       timestamp("answered_at").defaultNow(),
 }, (t) => ({
-  // FIX: result page loads all answers for a session — was catastrophic without this
-  sessionIdx:          index("pa_session_idx").on(t.sessionId),
-  // FIX: analytics aggregates by question for fail-rate ranking
-  questionIdx:         index("pa_question_idx").on(t.questionId),
-  // Combined: uniqueness check + session result JOIN
-  sessionQuestionIdx:  index("pa_session_question_idx").on(t.sessionId, t.questionId),
+  sessionIdx:         index("pa_session_idx").on(t.sessionId),
+  questionIdx:        index("pa_question_idx").on(t.questionId),
+  sessionQuestionIdx: index("pa_session_question_idx").on(t.sessionId, t.questionId),
+  // Correctness filter for per-question fail-rate analytics
+  correctIdx:         index("pa_correct_idx").on(t.isCorrect),
 }));

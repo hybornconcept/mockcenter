@@ -31,7 +31,7 @@ const ACTION_ICON: Record<string, string> = {
 };
 
 export const load: PageServerLoad = async ({ fetch, locals }) => {
-  const sessionUser = locals.user as Record<string, any> | null;
+  const sessionUser = await locals.getUser() as Record<string, any> | null;
 
   const nameParts = (sessionUser?.name ?? 'Admin User').split(' ');
   const profile = {
@@ -82,7 +82,7 @@ export const load: PageServerLoad = async ({ fetch, locals }) => {
 export const actions: Actions = {
   /** Update the logged-in admin's own profile fields */
   updateProfile: async ({ request, fetch, locals }) => {
-    const sessionUser = locals.user as Record<string, any> | null;
+    const sessionUser = await locals.getUser() as Record<string, any> | null;
     if (!sessionUser?.id) return fail(401, { error: 'Not authenticated' });
 
     const form = await request.formData();

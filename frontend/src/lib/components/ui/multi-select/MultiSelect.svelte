@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Check, X, ChevronDown } from "lucide-svelte";
+	import { Check, X, ChevronDown } from "@lucide/svelte";
 	import { fade, slide } from "svelte/transition";
     import { onMount } from "svelte";
 

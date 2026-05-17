@@ -7,7 +7,7 @@
 	const navItems = [
 		{ name: "Exams", href: "#exams" },
 		{ name: "Features", href: "#features" },
-		{ name: "Refer & Earn", href: "#refer" },
+		{ name: "Invite Friends", href: "#refer" },
 		{ name: "Pricing", href: "#pricing" },
 		{ name: "Testimonials", href: "#testimonials" },
 		{ name: "FAQ", href: "#faq" },

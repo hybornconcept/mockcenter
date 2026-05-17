@@ -2,7 +2,7 @@
 	import { onMount, untrack } from "svelte";
 	import { fly, slide } from "svelte/transition";
 	import { cubicInOut } from "svelte/easing";
-	import { goto } from "$app/navigation";
+	import { goto, beforeNavigate } from "$app/navigation";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import { Badge } from "$lib/components/ui/badge/index.js";
 	import { Progress } from "$lib/components/ui/progress/index.js";
@@ -30,7 +30,7 @@
 		XCircle,
 		ChevronDown,
 		Sparkles,
-	} from "lucide-svelte";
+	} from "@lucide/svelte";
 
 	let isCalculatorOpen = $state(false);
 	let showNavigator = $state(true);
@@ -38,6 +38,8 @@
 	let fontSize = $state(15);
 	let isSubmitting = $state(false);
 	let showSubmitModal = $state(false);
+	let showExitModal = $state(false);
+	let pendingUrl = $state<string | null>(null);
 
 	function toggleCalculator() {
 		isCalculatorOpen = !isCalculatorOpen;
@@ -63,7 +65,7 @@
 	}
 
 	function clearOption(questionId: number) {
-		if (isReviewMode) return;
+		if (isReviewMode || !data.redemption) return;
 		const qIndex = questions.findIndex((q) => q.id === questionId);
 		if (qIndex !== -1) {
 			const q = questions[qIndex];
@@ -80,7 +82,11 @@
 	let { data } = $props();
 
 	// --- Mode detection ---
-	const isReviewMode = $derived(data.mode === "review");
+	const modeParts = $derived((data.mode || '').split(','));
+	const isReviewMode = $derived(modeParts.includes("review"));
+	const isPracticeMode = $derived(modeParts.includes("practice"));
+	const isSpeedDrill = $derived(modeParts.includes("speed"));
+	const isTimedMode = $derived(modeParts.includes("timed"));
 
 	// --- State ---
 	let questions: any[] = $state([]);
@@ -98,7 +104,7 @@
 
 	// --- Derived State ---
 	let QUESTIONS_PER_PAGE = $derived(data.questionsPerPage || 5);
-	let isTimed = $derived(data.duration > 0 && !isReviewMode);
+	let isTimed = $derived((isTimedMode || isSpeedDrill) && !isReviewMode);
 	let visibleQuestions = $derived(
 		questions.slice(
 			currentPageIndex * QUESTIONS_PER_PAGE,
@@ -164,14 +170,51 @@
 						isBookmarked: false,
 					}));
 
-					if (data.shuffle) {
-						for (let i = fetchedQuestions.length - 1; i > 0; i--) {
-							const j = Math.floor(Math.random() * (i + 1));
-							[fetchedQuestions[i], fetchedQuestions[j]] = [fetchedQuestions[j], fetchedQuestions[i]];
+					let savedState: any = null;
+					try {
+						const saved = localStorage.getItem(`practice_session_${data.sessionId}`);
+						if (saved) savedState = JSON.parse(saved);
+					} catch(e) {}
+
+					if (savedState && savedState.questionOrder) {
+						const qMap = new Map(fetchedQuestions.map((q: any) => [q.id, q]));
+						const orderedQuestions = [];
+						for (const id of savedState.questionOrder) {
+							if (qMap.has(id)) {
+								const q = qMap.get(id);
+								const s = savedState.questionsState?.[id] || {};
+								orderedQuestions.push({ ...q, ...s });
+								qMap.delete(id);
+							}
 						}
+						orderedQuestions.push(...Array.from(qMap.values()));
+						fetchedQuestions = orderedQuestions;
+
+						if (savedState.currentQuestionIndex !== undefined) {
+							currentQuestionIndex = savedState.currentQuestionIndex;
+							currentPageIndex = savedState.currentPageIndex !== undefined ? savedState.currentPageIndex : Math.floor(currentQuestionIndex / QUESTIONS_PER_PAGE);
+						}
+					} else {
+						if (data.shuffle) {
+							for (let i = fetchedQuestions.length - 1; i > 0; i--) {
+								const j = Math.floor(Math.random() * (i + 1));
+								[fetchedQuestions[i], fetchedQuestions[j]] = [fetchedQuestions[j], fetchedQuestions[i]];
+							}
+						}
+						if (fetchedQuestions.length > 0) fetchedQuestions[0].status = "not-answered";
 					}
+
 					questions = fetchedQuestions;
-					if (fetchedQuestions.length > 0) questions[0].status = "not-answered";
+
+					if (savedState && savedState.timeRemaining !== undefined && (isTimedMode || isSpeedDrill)) {
+						timeRemaining = savedState.timeRemaining;
+					} else {
+						if (isTimedMode) timeRemaining = data.duration * 60;
+						else if (isSpeedDrill) timeRemaining = questions.length * 60;
+					}
+					if (savedState && savedState.timeElapsed !== undefined) {
+						timeElapsed = savedState.timeElapsed;
+					}
 				}
 			} else {
 				loadError = true;
@@ -184,8 +227,6 @@
 		}
 
 		if (!isReviewMode) {
-			if (isTimed) timeRemaining = data.duration * 60;
-
 			timerInterval = setInterval(() => {
 				if (isTimed) {
 					if (timeRemaining > 0) {
@@ -203,6 +244,31 @@
 		return () => clearInterval(timerInterval);
 	});
 
+	// --- Local Storage Auto-save ---
+	$effect(() => {
+		if (isReviewMode || loading || questions.length === 0) return;
+		try {
+			const state = {
+				questionOrder: questions.map((q: any) => q.id),
+				questionsState: questions.reduce((acc: any, q: any) => {
+					acc[q.id] = {
+						status: q.status,
+						selectedOption: q.selectedOption,
+						isCorrect: q.isCorrect,
+						correctOptionId: q.correctOptionId,
+						isBookmarked: q.isBookmarked
+					};
+					return acc;
+				}, {}),
+				currentQuestionIndex,
+				currentPageIndex,
+				timeRemaining,
+				timeElapsed
+			};
+			localStorage.setItem(`practice_session_${data.sessionId}`, JSON.stringify(state));
+		} catch(e) {}
+	});
+
 	function formatTime(seconds: number) {
 		const h = Math.floor(seconds / 3600).toString().padStart(2, "0");
 		const m = Math.floor((seconds % 3600) / 60).toString().padStart(2, "0");
@@ -213,10 +279,11 @@
 	let timeDisplay = $derived(formatTime(isTimed ? timeRemaining : timeElapsed));
 
 	// --- Submit Logic ---
-	async function submitQuiz(timedOut = false) {
+	async function submitQuiz(timedOut = false, redirectUrl?: string | null) {
 		if (isSubmitting || isReviewMode) return;
 		isSubmitting = true;
 		showSubmitModal = false;
+		showExitModal = false;
 		clearInterval(timerInterval);
 
 		try {
@@ -238,6 +305,7 @@
 
 			const json = await res.json();
 			if (json.success) {
+				try { localStorage.removeItem(`practice_session_${data.sessionId}`); } catch(e) {}
 				// Store results in sessionStorage for the final_score page
 				sessionStorage.setItem(
 					`results_${data.sessionId}`,
@@ -249,7 +317,12 @@
 						totalQuestions: questions.length,
 					}),
 				);
-				goto(`/final_score?sessionId=${data.sessionId}`);
+				
+				if (redirectUrl) {
+					goto(redirectUrl);
+				} else {
+					goto(`/final_score?sessionId=${data.sessionId}`);
+				}
 			} else {
 				console.error("Submit failed:", json);
 				isSubmitting = false;
@@ -260,18 +333,72 @@
 		}
 	}
 
+	// --- Exit Navigation Logic ---
+	beforeNavigate((navigation) => {
+		if (isSubmitting || isReviewMode || questions.length === 0) return;
+		
+		if (!showExitModal) {
+			navigation.cancel();
+			pendingUrl = navigation.to?.url.href || null;
+			showExitModal = true;
+		}
+	});
+
+	function handleExitSave() {
+		submitQuiz(false, pendingUrl);
+	}
+
+	function handleExitDiscard() {
+		try { localStorage.removeItem(`practice_session_${data.sessionId}`); } catch(e) {}
+		showExitModal = false;
+		isSubmitting = true; // Prevents beforeNavigate from firing again
+		if (pendingUrl) goto(pendingUrl);
+		else history.back();
+	}
+
 	// --- Actions ---
-	function selectOption(questionId: string, optionOptionIndex: number) {
+	async function selectOption(questionId: string, optionOptionIndex: number) {
 		if (isReviewMode) return;
 		const qIndex = questions.findIndex((q) => q.id === questionId);
 		if (qIndex !== -1) {
-			questions[qIndex].selectedOption = optionOptionIndex;
-			questions[qIndex].status = "answered";
+			const q = questions[qIndex];
+			if (!data.redemption && q.selectedOption !== null) return;
+			
+			q.selectedOption = optionOptionIndex;
+			q.status = "answered";
+
+			if (isPracticeMode) {
+				try {
+					const res = await fetch(`/api/practice/${data.sessionId}/submit`, {
+						method: "POST",
+						headers: { "Content-Type": "application/json" },
+						body: JSON.stringify({
+							sessionId: data.sessionId,
+							questionId: q.id,
+							selectedOptionId: q.options[optionOptionIndex].id,
+							timeSpentSecs: 0
+						})
+					});
+					const json = await res.json();
+					if (json.success) {
+						q.isCorrect = json.data.isCorrect;
+						q.correctOptionId = json.data.correctOptionId;
+					}
+				} catch (err) {
+					console.error("Feedback error:", err);
+				}
+			}
 		}
 	}
 
 	function goToQuestion(index: number) {
 		if (index < 0 || index >= questions.length) return;
+		
+		if (!data.skip) {
+			const firstUnanswered = questions.findIndex(q => q.selectedOption === null);
+			if (firstUnanswered !== -1 && index > firstUnanswered) return;
+		}
+
 		const targetPage = Math.floor(index / QUESTIONS_PER_PAGE);
 		if (targetPage > currentPageIndex) slideDirection = 1;
 		else if (targetPage < currentPageIndex) slideDirection = -1;
@@ -288,6 +415,9 @@
 		if ((currentPageIndex + 1) * QUESTIONS_PER_PAGE < questions.length) {
 			slideDirection = 1;
 			currentPageIndex++;
+			setTimeout(() => {
+				document.querySelector('.overflow-y-auto')?.scrollTo({ top: 0, behavior: 'smooth' });
+			}, 50);
 		}
 	}
 
@@ -295,6 +425,53 @@
 		if (currentPageIndex > 0) {
 			slideDirection = -1;
 			currentPageIndex--;
+			setTimeout(() => {
+				document.querySelector('.overflow-y-auto')?.scrollTo({ top: 0, behavior: 'smooth' });
+			}, 50);
+		}
+	}
+
+	function handleQuestionCardNext(qRealIndex: number) {
+		const nextIndex = qRealIndex + 1;
+		if (nextIndex >= questions.length) return;
+
+		const targetPage = Math.floor(nextIndex / QUESTIONS_PER_PAGE);
+		
+		if (targetPage > currentPageIndex) {
+			goToQuestion(nextIndex);
+			setTimeout(() => {
+				document.querySelector('.overflow-y-auto')?.scrollTo({ top: 0, behavior: 'smooth' });
+			}, 50);
+		} else {
+			goToQuestion(nextIndex);
+			setTimeout(() => {
+				const el = document.getElementById(`question-${nextIndex}`);
+				if (el) {
+					el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+				}
+			}, 50);
+		}
+	}
+
+	function handleQuestionCardPrev(qRealIndex: number) {
+		const prevIndex = qRealIndex - 1;
+		if (prevIndex < 0) return;
+
+		const targetPage = Math.floor(prevIndex / QUESTIONS_PER_PAGE);
+		
+		if (targetPage < currentPageIndex) {
+			goToQuestion(prevIndex);
+			setTimeout(() => {
+				document.querySelector('.overflow-y-auto')?.scrollTo({ top: 0, behavior: 'smooth' });
+			}, 50);
+		} else {
+			goToQuestion(prevIndex);
+			setTimeout(() => {
+				const el = document.getElementById(`question-${prevIndex}`);
+				if (el) {
+					el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+				}
+			}, 50);
 		}
 	}
 
@@ -314,7 +491,7 @@
 
 	function getDefaultExplanation(q: any): string {
 		if (!q) return "No explanation available.";
-		const correct = q.options?.find((o: any) => o.isCorrect);
+		const correct = q.options?.find((o: any) => o.isCorrect || o.id === q.correctOptionId);
 		if (q.isCorrect) {
 			return `✓ Correct! You selected the right answer: "${correct?.body}". Well done!`;
 		} else {
@@ -350,6 +527,22 @@
 	confirmBtnClass="bg-red-500 hover:bg-red-600 shadow-red-500/20 text-white"
 	disabled={isSubmitting}
 	onConfirm={() => submitQuiz()}
+/>
+
+<!-- Exit Confirmation Modal -->
+<Confirmation
+	bind:open={showExitModal}
+	title="Exit Practice?"
+	description="Do you want to save your progress before leaving?"
+	confirmText={isSubmitting ? "Saving..." : "Save & Exit"}
+	cancelText="Cancel without saving"
+	icon={Save}
+	iconColorClass="text-brand"
+	iconBgClass="bg-brand/10"
+	confirmBtnClass="bg-brand hover:bg-brand/90 shadow-brand/20 text-white"
+	disabled={isSubmitting}
+	onConfirm={handleExitSave}
+	onCancel={handleExitDiscard}
 />
 
 <div class="h-screen flex flex-col bg-slate-50/50">
@@ -482,9 +675,9 @@
 								{#each visibleQuestions as question (question.id)}
 									{@const qRealIndex = questions.findIndex(q => q.id === question.id)}
 
-									{#if isReviewMode}
+									{#if isReviewMode || (isPracticeMode && question.isCorrect !== undefined)}
 										<!-- ===== REVIEW MODE CARD ===== -->
-										<div class="mb-10 rounded-xl border shadow-sm overflow-hidden
+										<div id="question-{qRealIndex}" class="mb-10 rounded-xl border shadow-sm overflow-hidden
 											{question.selectedOption === null
 												? 'border-slate-200 bg-white'
 												: question.isCorrect
@@ -532,7 +725,7 @@
 															</div>
 														{/if}
 														{#if question.imageUrl}
-															{@const imgSrc = question.imageUrl.startsWith('http') ? question.imageUrl : `/images/${question.imageUrl}`}
+															{@const imgSrc = question.imageUrl.startsWith('http') || question.imageUrl.startsWith('/') ? question.imageUrl : `/images/${question.imageUrl}`}
 															<div class="rounded-lg overflow-hidden flex justify-center bg-white p-2 shadow-sm border border-brand/10">
 																<img src={imgSrc} alt="Reference Material" class="max-w-full max-h-[350px] object-contain rounded-md" />
 															</div>
@@ -541,7 +734,7 @@
 												{/if}
 												<div class="bg-slate-50/80 rounded-xl p-4 text-slate-800 font-medium leading-relaxed border border-slate-100 shadow-inner mb-5" style="font-size: {fontSize}px">
 													{#each question.text.split("\n\n") as paragraph}
-														<p class="mb-2 last:mb-0">{paragraph}</p>
+														<p class="mb-2 last:mb-0">{@html paragraph}</p>
 													{/each}
 												</div>
 
@@ -549,13 +742,16 @@
 												<div class="space-y-2.5">
 													{#each question.options as option, idx}
 														{@const isSelected = question.selectedOption === idx}
-														{@const isCorrectOpt = option.isCorrect === true}
-														<div class="w-full flex items-center rounded-xl border px-3 py-2.5 transition-all relative text-left
+														{@const isCorrectOpt = option.isCorrect === true || option.id === question.correctOptionId}
+														<button
+															onclick={() => !isReviewMode && selectOption(question.id, idx)}
+															disabled={isReviewMode || (!data.redemption && question.selectedOption !== null)}
+															class="w-full flex items-center rounded-xl border px-3 py-2.5 transition-all relative text-left
 															{isCorrectOpt
 																? 'border-emerald-300 bg-emerald-50 shadow-sm'
 																: isSelected && !isCorrectOpt
 																	? 'border-red-300 bg-red-50 shadow-sm'
-																	: 'border-slate-200 bg-white'}">
+																	: 'border-slate-200 bg-white hover:bg-slate-50'} {(!isReviewMode && data.redemption) ? 'cursor-pointer' : 'cursor-default'}">
 
 															<!-- Option letter badge -->
 															<div class="w-7 h-7 flex items-center justify-center shrink-0 mr-3">
@@ -569,7 +765,7 @@
 																</div>
 															</div>
 
-															<span class="flex-1 text-slate-700 font-medium text-[14px]">{option.body ?? option}</span>
+															<span class="flex-1 text-slate-700 font-medium text-[14px]">{@html option.body ?? option}</span>
 
 															<!-- Check/X icon on right -->
 															{#if isCorrectOpt}
@@ -577,7 +773,7 @@
 															{:else if isSelected && !isCorrectOpt}
 																<XCircle class="w-5 h-5 text-red-500 ml-2 shrink-0" />
 															{/if}
-														</div>
+														</button>
 													{/each}
 												</div>
 
@@ -615,21 +811,23 @@
 										</div>
 									{:else}
 										<!-- ===== NORMAL QUIZ CARD ===== -->
-										<QuestionCard
-											{question}
-											index={qRealIndex + 1}
-											{fontSize}
-											onSelectOption={selectOption}
-											onNextPage={() => goToQuestion(currentQuestionIndex + 1)}
-											onPrevPage={() => goToQuestion(currentQuestionIndex - 1)}
-											onToggleCalculator={toggleCalculator}
-											isCalculatorActive={isCalculatorOpen}
-											onToggleFlag={() => toggleFlag(question.id)}
-											onToggleBookmark={() => toggleBookmark(question.id)}
-											onClearOption={() => clearOption(question.id)}
-											onReportIssue={() => reportIssue(question.id)}
-											onChangeFontSize={(delta) => (fontSize = Math.min(24, Math.max(12, fontSize + delta)))}
-										/>
+										<div id="question-{qRealIndex}">
+											<QuestionCard
+												{question}
+												index={qRealIndex + 1}
+												{fontSize}
+												onSelectOption={selectOption}
+												onNextPage={() => handleQuestionCardNext(qRealIndex)}
+												onPrevPage={() => handleQuestionCardPrev(qRealIndex)}
+												onToggleCalculator={toggleCalculator}
+												isCalculatorActive={isCalculatorOpen}
+												onToggleFlag={() => toggleFlag(question.id)}
+												onToggleBookmark={() => toggleBookmark(question.id)}
+												onClearOption={() => clearOption(question.id)}
+												onReportIssue={() => reportIssue(question.id)}
+												onChangeFontSize={(delta) => (fontSize = Math.min(24, Math.max(12, fontSize + delta)))}
+											/>
+										</div>
 									{/if}
 								{/each}
 							</div>
@@ -660,7 +858,7 @@
 						<Button
 							class="bg-brand hover:bg-brand/90 text-white shadow-md rounded-xl px-6 h-10 font-bold transition-all"
 							onclick={nextPage}
-							disabled={(currentPageIndex + 1) * QUESTIONS_PER_PAGE >= questions.length}
+							disabled={(currentPageIndex + 1) * QUESTIONS_PER_PAGE >= questions.length || (!data.skip && visibleQuestions.some(q => q.selectedOption === null))}
 						>
 							Next Page
 							<ArrowRight class="w-4 h-4 ml-2" />

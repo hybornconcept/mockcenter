@@ -10,7 +10,7 @@
 		X,
 		Clock,
 		DnaIcon,
-	} from "lucide-svelte";
+	} from "@lucide/svelte";
 
 	const features = [
 		{

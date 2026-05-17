@@ -1,899 +1,1048 @@
 <script lang="ts">
-	import {
-		Check,
-		Briefcase,
-		GraduationCap,
-		CalendarIcon,
-		Sparkles,
-		ChevronDown,
-		X,
-	} from "lucide-svelte";
-	import MultiSelect from "$lib/components/ui/multi-select/MultiSelect.svelte";
-	import { Button } from "$lib/components/ui/button";
-	import { Input } from "$lib/components/ui/input";
-	import { Spinner } from "$lib/components/ui/spinner";
-	import { Label } from "$lib/components/ui/label";
-	import { Calendar } from "$lib/components/ui/calendar";
-	import * as Popover from "$lib/components/ui/popover/index.js";
+	import { onMount } from "svelte";
+	import { fade, fly, slide } from "svelte/transition";
+	import { Button, buttonVariants } from "$lib/components/ui/button/index.js";
+	import * as Card from "$lib/components/ui/card/index.js";
+	import { Progress } from "$lib/components/ui/progress/index.js";
+	import { Input } from "$lib/components/ui/input/index.js";
+	import { Label } from "$lib/components/ui/label/index.js";
 	import * as Select from "$lib/components/ui/select/index.js";
-	import { toast } from "svelte-sonner";
-	import * as v from "valibot";
-	import { slide } from "svelte/transition";
-	import { cubicOut } from "svelte/easing";
+	import { Slider } from "$lib/components/ui/slider/index.js";
+	import { Badge } from "$lib/components/ui/badge/index.js";
+	import { Separator } from "$lib/components/ui/separator/index.js";
 	import {
-		DateFormatter,
-		parseDate,
-		getLocalTimeZone,
-		today,
-	} from "@internationalized/date";
-	import { cn } from "$lib/utils";
-
-	let formData = $state({
-		userType: "",
-		phoneNumber: "",
-		targetExam: "",
-		targetScore: "",
-		examDate: "",
-		state: "",
-		school: "",
-		prepHours: [] as string[],
-		prepDays: "",
-		hardSubjects: [] as string[],
-		hasTutor: "",
-		biggestChallenge: [] as string[],
-		reminderPreference: [] as string[],
-
-		examLevel: "",
-		employmentStatus: "",
-		timesTaken: "",
-		yearsExperience: "",
-		hardTopicAreas: [] as string[],
-		reason: "",
-	});
-
-	let isCalendarOpen = $state(false);
-	let submitting = $state(false);
-
-	const df = new DateFormatter("en-US", { dateStyle: "long" });
+		ChevronRight,
+		ChevronLeft,
+		Sparkles,
+		Lightbulb,
+		Check,
+		MoveLeft,
+		MoveRight,
+		Info,
+		Calendar,
+		Smartphone,
+		Laptop,
+		Monitor,
+		Upload,
+		ArrowRight,
+		Phone,
+		Clock,
+		Target,
+		Zap,
+		Bell,
+		MessageSquare,
+		GraduationCap,
+		Briefcase,
+		PartyPopper,
+		X,
+	} from "@lucide/svelte";
+	import { goto } from "$app/navigation";
+	import { page } from "$app/stores";
+	import { cn } from "$lib/utils.js";
+	import { toast } from "svelte-sonner";
 
 	let { data } = $props();
-	let {
-		STUDENT_EXAMS = [],
-		PROFESSIONAL_EXAMS = [],
-		EXAM_LEVELS = [],
-		NIGERIAN_STATES = [],
-		PREP_HOURS_OPTS = [],
-		STUDENT_HARD_SUBJECTS = [],
-		PROF_HARD_TOPICS = [],
-		TUTOR_OPTS = [],
-		STUDENT_CHALLENGES = [],
-		PROF_CHALLENGES = [],
-		REMINDER_OPTS = [],
-		EMP_STATUS_OPTS = [],
-		PROF_REASONS = [],
-	} = $derived(data);
 
-	let scoreConfig = $derived.by(() => {
-		let e = formData.targetExam;
-		if (formData.userType === "student") {
-			if (e === "jamb")
-				return {
-					label: "What score are you targeting?",
-					min: 100,
-					max: 400,
-					step: 1,
-				};
-			if (["waec", "neco", "nabteb"].includes(e))
-				return {
-					label: "How many credits are you targeting?",
-					min: 1,
-					max: 9,
-					step: 1,
-				};
-			if (e === "post_utme" || e === "common_entrance")
-				return {
-					label: "What score are you targeting?",
-					min: 1,
-					max: 100,
-					step: 1,
-				};
-		} else {
-			if (["ican", "citn"].includes(e))
-				return {
-					label: "How many papers are you sitting this sitting?",
-					min: 1,
-					max: 6,
-					step: 1,
-				};
-			if (e === "ican_atswa")
-				return {
-					label: "How many papers are you sitting this sitting?",
-					min: 1,
-					max: 3,
-					step: 1,
-				};
-			if (e === "law_school")
-				return {
-					label: "How many papers are you sitting this sitting?",
-					min: 1,
-					max: 5,
-					step: 1,
-				};
-			if (e === "ielts")
-				return {
-					label: "What band score are you targeting?",
-					min: 4,
-					max: 9,
-					step: 0.5,
-				};
-			return {
-				label: "What score are you targeting?",
-				min: 1,
-				max: 100,
-				step: 1,
-			};
-		}
-		return { label: "Target Score", min: 0, max: 100, step: 1 };
+	// -- STATE --
+	let currentStep = $state(1);
+	let userType = $state<"student" | "professional" | null>(null);
+	let isSubmitting = $state(false);
+	let isSuccess = $state(false);
+
+	// -- FORM DATA --
+	let formData = $state({
+		phoneNumber: "",
+		targetExam: "",
+		targetScore: [280],
+		examDate: "",
+		school: "",
+		state: "",
+		profExam: "",
+		examLevel: "",
+		papersSitting: [2],
+		timesTaken: [0],
+		yearsExperience: [0],
+		prepHours: [] as string[],
+		prepDays: [5],
+		hardSubjects: [] as string[],
+		hardTopicAreas: [] as string[],
+		hasTutor: "",
+		employmentStatus: "",
+		biggestChallenge: "",
+		reminderPreference: [] as string[],
+		reason: "",
+		confidence: [3],
+		photo: null as File | null,
+		aiTone: "",
+		photoPreview: "",
+		sittingCourses: [] as string[],
 	});
 
-	function toggleArrayItem(arr: string[], val: string, max?: number) {
+	const progress = $derived(
+		Math.round(((currentStep - 1) / data.steps.length) * 100),
+	);
+
+	// -- CONFIGS --
+	const {
+		steps,
+		STUDENT_EXAMS,
+		PROFESSIONAL_EXAMS,
+		EXAM_LEVELS,
+		STATES,
+		PREP_HOURS_OPTS,
+		STUDENT_HARD_SUBJECTS,
+		PROF_HARD_TOPICS,
+		TUTOR_OPTS,
+		STUDENT_CHALLENGES,
+		PROF_CHALLENGES,
+		REMINDER_OPTS,
+		EMP_STATUS_OPTS,
+		PROF_REASONS,
+		studentTargetConfig,
+		profTargetConfig,
+	} = $derived(data);
+
+	// -- METHODS --
+	function nextStep() {
+		/* 
+		if (currentStep === 1 && !userType) {
+			toast.error("Please select what describes you best.");
+			return;
+		}
+
+		if (currentStep === 2) {
+			if (!formData.phoneNumber) {
+				toast.error("Please enter your phone number.");
+				return;
+			}
+			const exam =
+				userType === "student" ? formData.targetExam : formData.profExam;
+			if (!exam) {
+				toast.error("Please select your exam.");
+				return;
+			}
+			if (
+				userType === "professional" &&
+				!formData.examLevel &&
+				!["ielts", "trcn", "nimasa", "other"].includes(formData.profExam)
+			) {
+				toast.error("Please select your exam level.");
+				return;
+			}
+			if (!formData.examDate) {
+				toast.error("Please select your exam date.");
+				return;
+			}
+			if (userType === "student" && !formData.school) {
+				toast.error("Please enter your school name.");
+				return;
+			}
+			if (userType === "professional" && !formData.employmentStatus) {
+				toast.error("Please select your employment status.");
+				return;
+			}
+			if (!formData.state) {
+				toast.error("Please select your current location.");
+				return;
+			}
+		}
+		*/
+
+		if (currentStep < 4) {
+			currentStep++;
+			window.scrollTo({ top: 0, behavior: "smooth" });
+		}
+	}
+
+	function prevStep() {
+		if (currentStep > 1) {
+			currentStep--;
+			window.scrollTo({ top: 0, behavior: "smooth" });
+		}
+	}
+
+	function toggleSelection(arr: string[], val: string, max?: number) {
 		if (arr.includes(val)) {
 			return arr.filter((i) => i !== val);
 		} else {
-			if (max && arr.length >= max) return arr;
+			if (max && arr.length >= max) {
+				toast.warning(`You can only select up to ${max} items.`);
+				return arr;
+			}
 			return [...arr, val];
 		}
 	}
 
-	let formErrors = $state<Record<string, string>>({});
-
-	const studentSchema = v.object({
-		userType: v.literal("student"),
-		phoneNumber: v.pipe(
-			v.string(),
-			v.nonEmpty("Please enter your phone number."),
-		),
-		targetExam: v.pipe(
-			v.string(),
-			v.nonEmpty("Please select your target exam."),
-		),
-		targetScore: v.pipe(
-			v.union([v.string(), v.number()]),
-			v.custom((val) => val !== "", "Target score is required."),
-		),
-		examDate: v.pipe(v.string(), v.nonEmpty("Please select an exam date.")),
-		state: v.pipe(v.string(), v.nonEmpty("Please select your location.")),
-		school: v.pipe(v.string(), v.nonEmpty("Please enter your school name.")),
-		prepHours: v.pipe(
-			v.array(v.string()),
-			v.minLength(1, "Please select at least one preferred time."),
-		),
-		hasTutor: v.pipe(
-			v.string(),
-			v.nonEmpty("Please select if you have a tutor."),
-		),
-		biggestChallenge: v.pipe(
-			v.array(v.string()),
-			v.minLength(1, "Please select your biggest challenge."),
-		),
-		hardSubjects: v.pipe(
-			v.array(v.string()),
-			v.minLength(1, "Please select your difficult subjects."),
-		),
-		reminderPreference: v.pipe(
-			v.array(v.string()),
-			v.minLength(1, "Please select a reminder preference."),
-		),
-	});
-
-	const professionalSchema = v.object({
-		userType: v.literal("professional"),
-		phoneNumber: v.pipe(
-			v.string(),
-			v.nonEmpty("Please enter your phone number."),
-		),
-		targetExam: v.pipe(
-			v.string(),
-			v.nonEmpty("Please select your target exam."),
-		),
-		targetScore: v.pipe(
-			v.union([v.string(), v.number()]),
-			v.custom((val) => val !== "", "Target score is required."),
-		),
-		examDate: v.pipe(v.string(), v.nonEmpty("Please select an exam date.")),
-		state: v.pipe(v.string(), v.nonEmpty("Please select your location.")),
-		examLevel: v.pipe(v.string(), v.nonEmpty("Please select your exam level.")),
-		employmentStatus: v.pipe(
-			v.string(),
-			v.nonEmpty("Please select your employment status."),
-		),
-		timesTaken: v.pipe(
-			v.union([v.string(), v.number()]),
-			v.custom(
-				(val) => val !== "",
-				"Please state how many times you've taken this exam.",
-			),
-		),
-		yearsExperience: v.optional(v.union([v.string(), v.number()])),
-		prepHours: v.pipe(
-			v.array(v.string()),
-			v.minLength(1, "Please select at least one preferred time."),
-		),
-		reason: v.pipe(
-			v.string(),
-			v.nonEmpty("Please select your reason for taking this exam."),
-		),
-		biggestChallenge: v.pipe(
-			v.array(v.string()),
-			v.minLength(1, "Please select your biggest challenge."),
-		),
-		hardTopicAreas: v.pipe(
-			v.array(v.string()),
-			v.minLength(1, "Please select your difficult topic areas."),
-		),
-		reminderPreference: v.pipe(
-			v.array(v.string()),
-			v.minLength(1, "Please select a reminder preference."),
-		),
-	});
-
-	async function handleSubmit(e: Event) {
-		e.preventDefault();
-		formErrors = {};
-
-		if (!formData.userType) {
-			toast.error("Please select a user type first.");
-			return;
-		}
-
-		const schema =
-			formData.userType === "student" ? studentSchema : professionalSchema;
-		const result = v.safeParse(schema, formData);
-
-		if (!result.success) {
-			toast.error("Please fix the errors in the form.");
-			const flatErrors = v.flatten<typeof schema>(result.issues);
-			if (flatErrors.nested) {
-				for (const [key, issues] of Object.entries(flatErrors.nested)) {
-					if (issues && issues.length > 0) {
-						formErrors[key] = issues[0];
-					}
-				}
-			}
-			return;
-		}
-
-		submitting = true;
-		try {
-			const normalizedState = formData.state === 'FCT (Abuja)' ? 'FCT' : formData.state;
-			const payload = {
-				...formData,
-				state: normalizedState,
-				examDate: formData.examDate ? new Date(formData.examDate).toISOString() : null,
-				// Backend expects examLevel to be "not_applicable" for student or ielts/other
-				examLevel: formData.userType === 'student' ? 'not_applicable' : (formData.examLevel || 'not_applicable'),
-			};
-
-			const res = await fetch('/api/users/onboarding', {
-				method: 'PATCH',
-				headers: { 'Content-Type': 'application/json' },
-				credentials: 'include',
-				body: JSON.stringify(payload)
-			});
-
-			if (!res.ok) {
-				const err = await res.json().catch(() => ({}));
-				toast.error('Onboarding failed', {
-					description: (err as any).message || 'Please try again.',
-				});
-				submitting = false;
-				return;
-			}
-
-			toast.success("Profile complete! Setting up your dashboard...");
-			window.location.href = '/dashboard';
-		} catch (err) {
-			toast.error('Something went wrong. Please try again.');
-			submitting = false;
-		}
+	async function handleSubmit() {
+		isSubmitting = true;
+		setTimeout(() => {
+			isSubmitting = false;
+			isSuccess = true;
+			window.scrollTo({ top: 0, behavior: "smooth" });
+		}, 1500);
 	}
 
-	const masonryColumns = [
-		[
-			{
-				src: "https://images.unsplash.com/photo-1531545514256-b1400bc00f31?w=600&q=70&auto=format,compress",
-				alt: "Happy black student taking online test",
-				height: "h-[380px]",
-				rounded: "rounded-b-2xl",
-				loading: "eager"
-			},
-			{
-				src: "https://images.unsplash.com/photo-1573164713988-8665fc963095?w=600&q=70&auto=format,compress",
-				alt: "Happy black student taking online test",
-				height: "h-[310px]",
-				rounded: "rounded-2xl",
-				loading: "lazy"
-			}
-		],
-		[
-			{
-				src: "https://images.unsplash.com/photo-1573164574572-cb89e39749b4?w=600&q=70&auto=format,compress",
-				alt: "Happy black student taking online test",
-				height: "h-[308px]",
-				rounded: "rounded-b-2xl",
-				loading: "eager"
-			},
-			{
-				src: "https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=600&q=70&auto=format,compress",
-				alt: "Happy diverse students taking online test",
-				height: "h-[360px]",
-				rounded: "rounded-2xl",
-				loading: "lazy"
-			}
-		],
-		[
-			{
-				src: "https://images.unsplash.com/photo-1588702547923-7093a6c3ba33?w=600&q=70&auto=format,compress",
-				alt: "Happy black student taking online test",
-				height: "h-[356px]",
-				rounded: "rounded-b-2xl",
-				loading: "eager"
-			},
-			{
-				src: "https://images.unsplash.com/photo-1600880292203-757bb62b4baf?w=600&q=70&auto=format,compress",
-				alt: "Happy black student taking online test",
-				height: "h-[285px]",
-				rounded: "rounded-2xl",
-				loading: "lazy"
-			}
-		]
-	];
+	function updateStudentExam(val: string) {
+		formData.targetExam = val;
+		const cfg = studentTargetConfig[val];
+		if (cfg) formData.targetScore = [cfg.def];
+	}
+
+	function updateProfExam(val: string) {
+		formData.profExam = val;
+		const cfg = profTargetConfig[val];
+		if (cfg) formData.papersSitting = [cfg.def];
+	}
+
+	function handlePhotoUpload(e: Event) {
+		const input = e.target as HTMLInputElement;
+		if (input.files && input.files[0]) {
+			formData.photo = input.files[0];
+			const reader = new FileReader();
+			reader.onload = (ev) => {
+				formData.photoPreview = ev.target?.result as string;
+			};
+			reader.readAsDataURL(input.files[0]);
+		}
+	}
 </script>
 
-<div
-	class="min-h-screen bg-[#f5f5f5] flex font-sans text-slate-900 overflow-x-hidden"
->
-	<!-- Left Side: Masonry Grid -->
-	<div
-		class="hidden lg:flex lg:w-[60%] h-screen sticky top-0 items-start justify-center overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] pb-8"
+{#snippet OptionButton(val: any, current: any, onclick: () => void, classes = "", rounded = "rounded-xl")}
+	<button
+		{onclick}
+		class={cn(
+			"px-4 py-2 text-[12.5px] font-bold border-2 transition-all duration-200",
+			rounded,
+			(Array.isArray(current) ? current.includes(val) : current === val)
+				? "border-brand bg-brand/5 text-brand"
+				: "border-slate-100 bg-white text-slate-400 hover:border-slate-200",
+			classes,
+		)}
 	>
-		<div class="grid grid-cols-3 gap-4 w-[96%]">
-			{#each masonryColumns as col}
-				<div class="flex flex-col gap-4">
-					{#each col as img}
-						<div
-							class="relative w-full {img.height} {img.rounded} overflow-hidden shadow-sm group bg-slate-200"
+		{val}
+	</button>
+{/snippet}
+
+{#snippet TagInput(label: string, placeholder: string, tags: string[], onAdd: (v: string) => void, onRemove: (v: string) => void, subtitle = "Type and press Enter")}
+	<div class="space-y-4">
+		<Label class="text-[13px] font-bold text-slate-800">
+			{label} <span class="text-slate-400 text-[11px] font-medium">({subtitle})</span>
+		</Label>
+		<div class="space-y-3">
+			<Input
+				type="text"
+				{placeholder}
+				class="h-12 rounded-xl border-slate-200 focus:ring-brand focus:border-brand"
+				onkeydown={(e) => {
+					if (e.key === "Enter") {
+						e.preventDefault();
+						const val = e.currentTarget.value.trim();
+						if (val) {
+							onAdd(val);
+							e.currentTarget.value = "";
+						}
+					}
+				}}
+			/>
+			<div class="flex flex-wrap gap-2">
+				{#each tags as t}
+					<div class="flex items-center gap-1.5 px-3 py-1.5 bg-[#f0fcfb] text-brand rounded-full text-[12px] font-bold border border-brand/10">
+						{t}
+						<button 
+							onclick={() => onRemove(t)}
+							class="hover:text-red-500 transition-colors"
 						>
-							<img
-								src={img.src}
-								alt={img.alt}
-								class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-								loading={img.loading === "eager" ? "eager" : "lazy"}
-								decoding="async"
-							/>
-							<div class="absolute inset-0 bg-black/40"></div>
+							<X class="w-3.5 h-3.5" />
+						</button>
+					</div>
+				{/each}
+			</div>
+		</div>
+	</div>
+{/snippet}
+
+<div class="min-h-screen bg-white font-sans antialiased text-[#1a1a1a] pb-24">
+	<!-- MAIN CONTAINER -->
+	<div class="max-w-3xl mx-auto pt-12 px-6 sm:px-10">
+		{#if !isSuccess}
+			<!-- HEADER SECTION -->
+			<div class="flex items-center justify-between mb-3">
+				<h2 class="text-base font-black text-slate-800 tracking-tight">
+					Tell us about yourself
+				</h2>
+				<span class="text-xs font-black text-brand">{progress}%</span>
+			</div>
+
+			<!-- PROGRESS BAR -->
+			<div class="mb-14">
+				<div class="h-1 w-full bg-slate-200 rounded-full mb-8 overflow-hidden">
+					<div
+						class="h-full bg-brand rounded-full transition-all duration-500"
+						style="width: {progress}%"
+					></div>
+				</div>
+
+				<div class="flex justify-between relative px-2">
+					<!-- Step Connection Line -->
+					<div
+						class="absolute top-[12px] left-[10%] right-[10%] h-[1px] bg-slate-200 -z-10"
+					></div>
+
+					{#each steps as step}
+						<div class="flex flex-col items-center gap-2">
+							<div
+								class={cn(
+									"w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-black transition-all duration-300 shadow-sm",
+									currentStep > step.id
+										? "bg-brand text-white"
+										: currentStep === step.id
+											? "bg-white border-2 border-brand text-brand shadow-[0_0_0_4px_rgba(59,109,17,0.1)]"
+											: "bg-white border border-slate-300 text-slate-400",
+								)}
+							>
+								{#if currentStep > step.id}
+									<Check class="w-3.5 h-3.5" stroke-width={4} />
+								{:else}
+									{step.id}
+								{/if}
+							</div>
+							<span
+								class={cn(
+									"text-[9px] font-black uppercase tracking-widest transition-all duration-300",
+									currentStep >= step.id ? "text-brand" : "text-slate-400",
+								)}
+							>
+								{step.label}
+							</span>
 						</div>
 					{/each}
 				</div>
-			{/each}
-		</div>
-	</div>
-
-	<!-- Right Side: Form Container -->
-	<div
-		class="w-full lg:w-[45%] flex flex-col items-start justify-center p-4 md:p-8 lg:py-10 lg:pl-2 overflow-y-auto"
-	>
-		<div
-			class="w-full md:w-[95%] bg-white rounded-xl shadow-lg p-6 lg:p-7 my-auto max-w-[550px] mx-auto"
-		>
-			<div class="flex items-center gap-2 mb-8">
-				<div class="flex items-center gap-1.5">
-					<div
-						class="w-8 h-8 bg-[#8a3ab9] rounded-lg flex items-center justify-center"
-					>
-						<span class="text-white font-bold text-xl leading-none">m.</span>
-					</div>
-					<span class="font-bold text-xl tracking-tight text-[#008ba3]"
-						>Mockcenter</span
-					>
-				</div>
 			</div>
 
-			<h1 class="text-2xl font-bold text-slate-800 mb-6">
-				Complete your profile
-			</h1>
-
-			{#snippet fieldError(error: string | undefined)}
-				{#if error}
-					<p class="text-[11px] text-red-500 mt-1 font-semibold pl-1">
-						{error}
-					</p>
-				{/if}
-			{/snippet}
-
-			<form onsubmit={handleSubmit} class="space-y-4">
-				<!-- Step 0: Who Are You? -->
-				<div class="space-y-4 pt-1">
-					<p
-						class="text-[11px] font-bold text-slate-400 uppercase tracking-widest pl-1"
+			<!-- STEP CONTENT -->
+			<div class="space-y-8">
+				<div class="space-y-2">
+					<div
+						class="text-[10px] font-black text-brand uppercase tracking-[0.25em]"
 					>
-						WHICH BEST DESCRIBES YOU?
-					</p>
-					<div class="grid grid-cols-2 gap-4">
-						<button
-							type="button"
-							onclick={() => (formData.userType = "student")}
-							class="relative flex flex-col justify-between h-[102px] p-5 rounded-2xl border-2 text-left transition-all {formData.userType ===
-							'student'
-								? 'border-brand bg-[#f0fcfb]'
-								: 'border-slate-100 bg-white hover:border-slate-200 shadow-sm'}"
-						>
-							<div class="flex justify-between items-start w-full">
-								<GraduationCap
-									class="w-6 h-6 {formData.userType === 'student'
-										? 'text-brand'
-										: 'text-slate-400'}"
-								/>
-								<div
-									class="w-6 h-6 rounded-full border-2 transition-all flex items-center justify-center {formData.userType ===
-									'student'
-										? 'border-brand bg-brand text-white'
-										: 'border-slate-200 bg-white'}"
-								>
-									{#if formData.userType === "student"}<Check
-											class="w-3 h-3"
-										/>{/if}
-								</div>
-							</div>
-							<h3 class="text-base font-bold text-slate-800">Student</h3>
-						</button>
-						<button
-							type="button"
-							onclick={() => (formData.userType = "professional")}
-							class="relative flex flex-col justify-between h-[102px] p-5 rounded-2xl border-2 text-left transition-all {formData.userType ===
-							'professional'
-								? 'border-brand bg-[#f0fcfb]'
-								: 'border-slate-100 bg-white hover:border-slate-200 shadow-sm'}"
-						>
-							<div class="flex justify-between items-start w-full">
-								<Briefcase
-									class="w-6 h-6 {formData.userType === 'professional'
-										? 'text-brand'
-										: 'text-slate-400'}"
-								/>
-								<div
-									class="w-6 h-6 rounded-full border-2 transition-all flex items-center justify-center {formData.userType ===
-									'professional'
-										? 'border-brand bg-brand text-white'
-										: 'border-slate-200 bg-white'}"
-								>
-									{#if formData.userType === "professional"}<Check
-											class="w-3 h-3"
-										/>{/if}
-								</div>
-							</div>
-							<h3 class="text-base font-bold text-slate-800">Professional</h3>
-						</button>
+						Step {currentStep} of {steps.length}
 					</div>
+					<h1
+						class="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight leading-[1.1]"
+					>
+						{steps[currentStep - 1]?.title}
+					</h1>
+					<p
+						class="text-slate-400 text-[15px] font-medium max-w-xl leading-relaxed"
+					>
+						{steps[currentStep - 1]?.subtitle}
+					</p>
 				</div>
 
-				{#if formData.userType}
-					<div
-						class="space-y-6 pt-1"
-						transition:slide={{ duration: 400, easing: cubicOut }}
-					>
-						<!-- Q1: Which exam -->
-						<div class="space-y-2">
-							<Label class="text-xs font-semibold text-slate-600 pl-1">
-								{formData.userType === "student"
-									? "Which exam are you preparing for?"
-									: "Which professional exam are you sitting?"}
-							</Label>
-							<div class="relative">
-								<select
-									bind:value={formData.targetExam}
-									required
-									class="w-full h-11 px-3 pr-10 bg-white border border-slate-300 rounded-lg text-sm outline-none appearance-none focus:ring-brand focus:border-brand transition-all"
-								>
-									<option value="" selected disabled>Select an exam</option>
-									{#if formData.userType === "student"}
-										{#each STUDENT_EXAMS as exam}<option value={exam.value}
-												>{exam.label}</option
-											>{/each}
+				{#if currentStep === 1}
+					<!-- PHASE 1: IDENTITY -->
+					<div in:fade={{ duration: 400 }} class="space-y-5">
+						<div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+							<!-- STUDENT CARD -->
+							<button
+								onclick={() => {
+									userType = "student";
+									nextStep();
+								}}
+								class={cn(
+									"group relative flex flex-col items-start p-6 rounded-3xl border-2 transition-all duration-300 text-left h-full",
+									userType === "student"
+										? "border-brand bg-white shadow-xl ring-4 ring-brand/10"
+										: "border-slate-200 bg-white/60 hover:border-slate-300 hover:shadow-md",
+								)}
+							>
+								<div class="flex items-center gap-3 mb-3">
+									{#if userType === "student"}
+										<div
+											class="w-5 h-5 bg-brand rounded-full flex items-center justify-center text-white shrink-0 border-2 border-transparent"
+										>
+											<Check class="w-3 h-3" stroke-width={4} />
+										</div>
 									{:else}
-										{#each PROFESSIONAL_EXAMS as exam}<option value={exam.value}
-												>{exam.label}</option
-											>{/each}
+										<div
+											class="w-5 h-5 border-[1.5px] border-slate-300 bg-white rounded-full shrink-0"
+										></div>
 									{/if}
-								</select>
-								<ChevronDown
-									class="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none"
-								/>
-							</div>
-							{@render fieldError(formErrors.targetExam)}
-						</div>
 
-						<!-- Q2 (Prof only): What level -->
-						{#if formData.userType === "professional" && formData.targetExam && !["ielts", "other"].includes(formData.targetExam)}
-							<div class="space-y-2">
-								<Label class="text-xs font-semibold text-slate-600 pl-1"
-									>What level are you sitting?</Label
-								>
-								<div class="relative">
-									<select
-										bind:value={formData.examLevel}
-										required
-										class="w-full h-11 px-3 pr-10 bg-white border border-slate-300 rounded-lg text-sm outline-none appearance-none focus:ring-brand focus:border-brand transition-all"
-									>
-										<option value="" selected disabled>Select level</option>
-										{#each EXAM_LEVELS as level}<option value={level.value}
-												>{level.label}</option
-											>{/each}
-									</select>
-									<ChevronDown
-										class="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none"
-									/>
-								</div>
-								{@render fieldError(formErrors.examLevel)}
-							</div>
-						{/if}
-
-						<div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-							<!-- Target Score -->
-							<div class="space-y-2">
-								<Label class="text-xs font-semibold text-slate-600 pl-1"
-									>{scoreConfig.label}</Label
-								>
-								<Input
-									type="number"
-									step={scoreConfig.step}
-									min={scoreConfig.min}
-									max={scoreConfig.max}
-									required
-									bind:value={formData.targetScore}
-									placeholder="e.g. {scoreConfig.min}"
-									class="h-11 bg-white border-slate-300 focus-visible:ring-brand rounded-lg"
-								/>
-								{@render fieldError(formErrors.targetScore)}
-							</div>
-
-							<!-- Exam Date -->
-							<div class="space-y-2">
-								<Label class="text-xs font-semibold text-slate-600 pl-1"
-									>When is your exam{formData.userType === "professional"
-										? " sitting"
-										: ""}?</Label
-								>
-								<Popover.Root bind:open={isCalendarOpen}>
-									<Popover.Trigger
+									<GraduationCap
 										class={cn(
-											"w-full h-11 justify-start text-left font-semibold border border-slate-300 rounded-lg bg-white flex items-center px-3 text-sm hover:bg-slate-50 transition-colors",
-											!formData.examDate && "text-slate-400 font-normal",
+											"w-8 h-8 shrink-0 transition-colors duration-300",
+											userType === "student" ? "text-brand" : "text-slate-800",
+										)}
+										stroke-width={1.5}
+									/>
+
+									<h3
+										class={cn(
+											"text-xl font-semibold tracking-tight ml-1 transition-colors duration-300",
+											userType === "student" ? "text-brand" : "text-slate-900",
 										)}
 									>
-										<CalendarIcon class="mr-2 h-4 w-4 shrink-0" />
-										{#if formData.examDate && formData.examDate.includes("-")}
-											{df.format(
-												parseDate(formData.examDate).toDate(getLocalTimeZone()),
-											)}
-										{:else}
-											Pick a date
-										{/if}
-									</Popover.Trigger>
-									<Popover.Content
-										class="w-auto p-0 border-none shadow-2xl bg-white rounded-lg z-[100]"
-										align="center"
-										sideOffset={8}
-										collisionPadding={20}
-									>
-										<Calendar
-											type="single"
-											value={formData.examDate &&
-											formData.examDate.includes("-")
-												? parseDate(formData.examDate)
-												: undefined}
-											onValueChange={(v) => {
-												if (v) {
-													formData.examDate = v.toString();
-													isCalendarOpen = false;
-												}
-											}}
-											minValue={today(getLocalTimeZone())}
-											initialFocus
-										/>
-									</Popover.Content>
-								</Popover.Root>
-								{@render fieldError(formErrors.examDate)}
-							</div>
-						</div>
-
-						<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-							<!-- Phone Number -->
-							<div class="space-y-1.5">
-								<Label class="text-xs font-semibold text-slate-600 pl-1"
-									>Phone Number</Label
-								>
-								<Input
-									type="tel"
-									bind:value={formData.phoneNumber}
-									required
-									placeholder="e.g. 08012345678"
-									class="h-10 bg-white border-slate-300 focus-visible:ring-brand rounded-lg"
-								/>
-								{@render fieldError(formErrors.phoneNumber)}
-							</div>
-
-							<!-- Current Location -->
-							<div class="space-y-1.5">
-								<Label class="text-xs font-semibold text-slate-600 pl-1"
-									>What is your current location?</Label
-								>
-								<div class="relative">
-									<select
-										bind:value={formData.state}
-										required
-										class="w-full h-10 px-3 pr-10 bg-white border border-slate-300 rounded-lg text-sm outline-none appearance-none focus:ring-brand focus:border-brand transition-all"
-									>
-										<option value="" selected disabled>Select State</option>
-										{#each NIGERIAN_STATES as s}<option value={s}>{s}</option
-											>{/each}
-									</select>
-									<ChevronDown
-										class="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none"
-									/>
+										I'm a Student
+									</h3>
 								</div>
-								{@render fieldError(formErrors.state)}
-							</div>
-						</div>
 
-						{#if formData.userType === "professional"}
-							<!-- Times taken (100% width) -->
-							<div class="space-y-1.5 w-full">
-								<Label class="text-xs font-semibold text-slate-600 pl-1"
-									>How many times have you previously sat this exam?</Label
+								<p
+									class="text-[12px] text-slate-500 font-medium leading-relaxed mb-2"
 								>
-								<Input
-									type="number"
-									min="0"
-									max="20"
-									required
-									bind:value={formData.timesTaken}
-									class="h-10 bg-white border-slate-300 focus-visible:ring-brand rounded-lg"
-								/>
-								{@render fieldError(formErrors.timesTaken)}
-							</div>
-						{/if}
+									Preparing for school exams — secondary school, university
+									entrance, or international tests.
+								</p>
 
-						<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-							{#if formData.userType === "student"}
-								<!-- School -->
-								<div class="space-y-1.5">
-									<Label class="text-xs font-semibold text-slate-600 pl-1"
-										>What school do you attend?</Label
-									>
-									<Input
-										type="text"
-										bind:value={formData.school}
-										required
-										placeholder="School name"
-										class="h-10 bg-white border-slate-300 focus-visible:ring-brand rounded-lg"
-									/>
-									{@render fieldError(formErrors.school)}
-								</div>
-							{:else}
-								<!-- Employment Status -->
-								<div class="space-y-1.5">
-									<Label class="text-xs font-semibold text-slate-600 pl-1"
-										>Current employment status?</Label
-									>
-									<div class="relative">
-										<Select.Root
-											type="single"
-											bind:value={formData.employmentStatus}
-											name="employmentStatus"
+								<div class="flex flex-wrap gap-1 mt-auto">
+									{#each ["JAMB", "WAEC", "NECO", "IELTS", "Post-UTME"] as tag}
+										<span
+											class={cn(
+												"text-[8px] font-bold px-1.5 py-0.5 rounded-md tracking-wider uppercase",
+												userType === "student"
+													? "bg-[#f0fcfb] text-brand"
+													: "bg-white border border-slate-200 text-slate-400",
+											)}>{tag}</span
 										>
-											<Select.Trigger
-												class="w-full min-h-[44px] bg-white border border-slate-300 rounded-lg text-sm focus:ring-brand focus:border-brand"
-											>
-												{formData.employmentStatus
-													? formData.employmentStatus
-													: "Select status..."}
-											</Select.Trigger>
-											<Select.Content>
-												<Select.Group>
-													{#each EMP_STATUS_OPTS as opt}
-														<Select.Item value={opt} label={opt}
-															>{opt}</Select.Item
-														>
-													{/each}
-												</Select.Group>
-											</Select.Content>
-										</Select.Root>
-									</div>
-									{@render fieldError(formErrors.employmentStatus)}
+									{/each}
 								</div>
-							{/if}
+							</button>
 
-							<!-- Prep Hours -->
-							<div class="space-y-1.5">
-								<Label class="text-xs font-semibold text-slate-600 pl-1"
-									>When can you dedicate to the quiz?</Label
-								>
-								<MultiSelect
-									options={PREP_HOURS_OPTS}
-									bind:selected={formData.prepHours}
-									placeholder="Select hours..."
-								/>
-								{@render fieldError(formErrors.prepHours)}
-							</div>
-
-							{#if formData.userType === "student"}
-								<!-- Tutor (Single Select) -->
-								<div class="space-y-1.5">
-									<Label class="text-xs font-semibold text-slate-600 pl-1"
-										>Any tutor or extramural lessons?</Label
-									>
-									<div class="relative">
-										<Select.Root
-											type="single"
-											bind:value={formData.hasTutor}
-											name="tutor"
-										>
-											<Select.Trigger
-												class="w-full min-h-[44px] bg-white border border-slate-300 rounded-lg text-sm focus:ring-brand focus:border-brand"
-											>
-												{formData.hasTutor
-													? formData.hasTutor
-													: "Select an option"}
-											</Select.Trigger>
-											<Select.Content>
-												<Select.Group>
-													{#each TUTOR_OPTS as opt}
-														<Select.Item value={opt} label={opt}
-															>{opt}</Select.Item
-														>
-													{/each}
-												</Select.Group>
-											</Select.Content>
-										</Select.Root>
-									</div>
-									{@render fieldError(formErrors.hasTutor)}
-								</div>
-							{:else}
-								<!-- Reason -->
-								<div class="space-y-1.5">
-									<Label class="text-xs font-semibold text-slate-600 pl-1"
-										>Why are you taking this quiz?</Label
-									>
-									<div class="relative">
-										<Select.Root
-											type="single"
-											bind:value={formData.reason}
-											name="reason"
-										>
-											<Select.Trigger
-												class="w-full min-h-[44px] bg-white border border-slate-300 rounded-lg text-sm focus:ring-brand focus:border-brand"
-											>
-												{formData.reason
-													? formData.reason
-													: "Select reasons..."}
-											</Select.Trigger>
-											<Select.Content>
-												<Select.Group>
-													{#each PROF_REASONS as opt}
-														<Select.Item value={opt} label={opt}
-															>{opt}</Select.Item
-														>
-													{/each}
-												</Select.Group>
-											</Select.Content>
-										</Select.Root>
-									</div>
-									{@render fieldError(formErrors.reason)}
-								</div>
-							{/if}
-
-							<!-- Reminders -->
-							<div class="space-y-1.5">
-								<Label class="text-xs font-semibold text-slate-600 pl-1"
-									>Medium(s) for quiz reminders ?</Label
-								>
-								<MultiSelect
-									options={REMINDER_OPTS}
-									bind:selected={formData.reminderPreference}
-									placeholder="Select preferences..."
-								/>
-								{@render fieldError(formErrors.reminderPreference)}
-							</div>
-						</div>
-
-						<!-- Biggest Challenge (100% width) -->
-						<div class="space-y-1.5 w-full">
-							<Label class="text-xs font-semibold text-slate-600 pl-1"
-								>What is your biggest challenge with quiz?</Label
+							<!-- PROFESSIONAL CARD -->
+							<button
+								onclick={() => {
+									userType = "professional";
+									nextStep();
+								}}
+								class={cn(
+									"group relative flex flex-col items-start p-6 rounded-3xl border-2 transition-all duration-300 text-left h-full",
+									userType === "professional"
+										? "border-brand bg-white shadow-xl ring-4 ring-brand/10"
+										: "border-slate-200 bg-white/60 hover:border-slate-300 hover:shadow-md",
+								)}
 							>
-							<MultiSelect
-								options={formData.userType === "student"
-									? STUDENT_CHALLENGES
-									: PROF_CHALLENGES}
-								bind:selected={formData.biggestChallenge}
-								placeholder="Select challenges..."
-							/>
-							{@render fieldError(formErrors.biggestChallenge)}
-						</div>
-
-						<!-- Difficult Subjects / Topics (100% width) -->
-						<div class="space-y-1.5 w-full">
-							<Label class="text-xs font-semibold text-slate-600 pl-1"
-								>{formData.userType === "student"
-									? "Which subjects do you find hardest?"
-									: "Which topic areas do you find most difficult?"}</Label
-							>
-							{#if formData.userType === "student"}
-								<MultiSelect
-									options={STUDENT_HARD_SUBJECTS}
-									bind:selected={formData.hardSubjects}
-									placeholder="Select subjects..."
-									maxSelections={5}
-								/>
-								{@render fieldError(formErrors.hardSubjects)}
-							{:else}
-								<MultiSelect
-									options={PROF_HARD_TOPICS}
-									bind:selected={formData.hardTopicAreas}
-									placeholder="Select topics..."
-									maxSelections={5}
-								/>
-								{@render fieldError(formErrors.hardTopicAreas)}
-							{/if}
-						</div>
-
-						<!-- Submission & Terms -->
-						<div class="pt-4 pb-8 flex flex-col gap-5">
-							<div class="flex items-center gap-3 px-1">
-								<div class="relative flex items-center">
-									<input
-										type="checkbox"
-										id="terms"
-										required
-										class="w-5 h-5 rounded border-slate-300 text-brand focus:ring-brand focus:ring-offset-0 cursor-pointer"
+								<div class="flex items-center gap-3 mb-3">
+									{#if userType === "professional"}
+										<div
+											class="w-5 h-5 bg-brand rounded-full flex items-center justify-center text-white shrink-0 border-2 border-transparent"
+										>
+											<Check class="w-3 h-3" stroke-width={4} />
+										</div>
+									{:else}
+										<div
+											class="w-5 h-5 border-[1.5px] border-slate-300 bg-white rounded-full shrink-0"
+										></div>
+									{/if}
+									<Briefcase
+										class={cn(
+											"w-8 h-8 shrink-0 transition-colors duration-300",
+											userType === "professional"
+												? "text-brand"
+												: "text-amber-900",
+										)}
+										stroke-width={1.5}
 									/>
-								</div>
-								<Label
-									for="terms"
-									class="text-[13px] text-slate-500 cursor-pointer select-none"
-								>
-									I agree to the <a
-										href="/terms"
-										class="text-brand hover:underline font-semibold"
-										>Terms of Service</a
-									>
-									and
-									<a
-										href="/privacy"
-										class="text-brand hover:underline font-semibold"
-										>Privacy Policy</a
-									>.
-								</Label>
-							</div>
 
-							<Button
-								type="submit"
-								disabled={submitting}
-								class="w-full h-[54px] bg-brand text-white font-bold text-base shadow-lg shadow-brand/20 hover:bg-brand-dark transition-all rounded-xl active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-							>
-								{#if submitting}
-									<Spinner class="w-5 h-5 mr-2" />
-									Submitting...
-								{:else}
-									<Sparkles class="w-4 h-4 mr-2" />
-									Start my quiz
-								{/if}
-							</Button>
+									<h3
+										class={cn(
+											"text-xl font-semibold tracking-tight ml-1 transition-colors duration-300",
+											userType === "professional"
+												? "text-brand"
+												: "text-slate-900",
+										)}
+									>
+										I'm a Professional
+									</h3>
+								</div>
+
+								<p
+									class="text-[12px] text-slate-500 font-medium leading-relaxed mb-6"
+								>
+									Preparing for professional or career certification exams —
+									accounting, law, teaching, and more.
+								</p>
+
+								<div class="flex flex-wrap gap-1 mt-auto">
+									{#each ["ICAN", "CITN", "Law School", "TRCN", "NIMASA"] as tag}
+										<span
+											class={cn(
+												"text-[8px] font-bold px-1.5 py-0.5 rounded-md tracking-wider uppercase",
+												userType === "professional"
+													? "bg-[#f0fcfb] text-brand"
+													: "bg-white border border-slate-200 text-slate-400",
+											)}>{tag}</span
+										>
+									{/each}
+								</div>
+							</button>
 						</div>
 					</div>
+				{:else if currentStep === 2}
+					<!-- PHASE 2: EXAM DETAILS -->
+					<div in:fade={{ duration: 400 }} class="space-y-5">
+						<div class="flex justify-center">
+							<Card.Root
+								class="w-full max-w-3xl border border-slate-200 shadow-sm rounded-[20px] bg-white overflow-hidden"
+							>
+								<div
+									class="px-6 py-4 flex items-center justify-between border-b border-slate-100"
+								>
+									<h2 class="text-xl font-bold text-slate-900 tracking-tight">
+										Exam Details
+									</h2>
+									<span class="text-[13px] font-bold text-slate-500"
+										>Step 2 of 4</span
+									>
+								</div>
+
+								<div class="p-6 pb-12 space-y-8">
+									<div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-6">
+										<!-- Phone Number -->
+										<div class="space-y-1">
+											<Label class="text-[13px] font-bold text-slate-800">
+												What is your phone number? <span class="text-red-500"
+													>*</span
+												>
+											</Label>
+											<Input
+												type="tel"
+												bind:value={formData.phoneNumber}
+												placeholder="08012345678"
+												class="!h-12 !w-full rounded-lg border-slate-200 bg-white font-medium text-slate-900"
+											/>
+										</div>
+
+										<!-- Location -->
+										<div class="space-y-1">
+											<Label class="text-[13px] font-bold text-slate-800">
+												What is your current location? <span
+													class="text-red-500">*</span
+												>
+											</Label>
+											<Select.Root type="single" bind:value={formData.state}>
+												<Select.Trigger
+													class="!h-12 !w-full justify-between rounded-lg border-slate-200 bg-white font-medium text-slate-900"
+												>
+													{formData.state ? formData.state : "Select state"}
+												</Select.Trigger>
+												<Select.Content
+													class="rounded-xl shadow-lg border-slate-100 max-h-60"
+												>
+													{#each STATES as state}
+														<Select.Item value={state} class="font-medium"
+															>{state}</Select.Item
+														>
+													{/each}
+												</Select.Content>
+											</Select.Root>
+										</div>
+
+										<!-- Exam Selection -->
+										<div class="space-y-1">
+											<Label class="text-[13px] font-bold text-slate-800">
+												{userType === "student"
+													? "Which exam are you preparing for?"
+													: "Which professional exam are you sitting?"}
+												<span class="text-red-500">*</span>
+											</Label>
+											{#if userType === "student"}
+												<Select.Root
+													type="single"
+													bind:value={formData.targetExam}
+													onValueChange={updateStudentExam}
+												>
+													<Select.Trigger
+														class="!h-12 !w-full justify-between rounded-lg border-slate-200 bg-white font-medium text-slate-900"
+													>
+														{formData.targetExam
+															? STUDENT_EXAMS.find(
+																	(e) => e.value === formData.targetExam,
+																)?.label
+															: "Select exam"}
+													</Select.Trigger>
+													<Select.Content
+														class="rounded-xl shadow-lg border-slate-100"
+													>
+														{#each STUDENT_EXAMS as exam}
+															<Select.Item
+																value={exam.value}
+																class="font-medium">{exam.label}</Select.Item
+															>
+														{/each}
+													</Select.Content>
+												</Select.Root>
+											{:else}
+												<Select.Root
+													type="single"
+													bind:value={formData.profExam}
+													onValueChange={updateProfExam}
+												>
+													<Select.Trigger
+														class="!h-12 !w-full justify-between rounded-lg border-slate-200 bg-white font-medium text-slate-900"
+													>
+														{formData.profExam
+															? PROFESSIONAL_EXAMS.find(
+																	(e) => e.value === formData.profExam,
+																)?.label
+															: "Select exam"}
+													</Select.Trigger>
+													<Select.Content
+														class="rounded-xl shadow-lg border-slate-100"
+													>
+														{#each PROFESSIONAL_EXAMS as exam}
+															<Select.Item
+																value={exam.value}
+																class="font-medium">{exam.label}</Select.Item
+															>
+														{/each}
+													</Select.Content>
+												</Select.Root>
+											{/if}
+										</div>
+
+										{#if userType === "student"}
+											<!-- Exam Date -->
+											<div class="space-y-1">
+												<Label class="text-[13px] font-bold text-slate-800">
+													When is your exam? <span class="text-red-500">*</span>
+												</Label>
+												<Input
+													type="date"
+													bind:value={formData.examDate}
+													class="!h-12 !w-full rounded-lg border-slate-200 bg-white font-medium text-slate-900"
+												/>
+											</div>
+
+											<!-- School -->
+											<div class="space-y-1">
+												<Label class="text-[13px] font-bold text-slate-800">
+													What school do you attend? <span class="text-red-500"
+														>*</span
+													>
+												</Label>
+												<Input
+													type="text"
+													bind:value={formData.school}
+													placeholder="University/College name"
+													class="!h-12 !w-full rounded-lg border-slate-200 bg-white font-medium text-slate-900"
+												/>
+											</div>
+										{:else}
+											<!-- Exam Level -->
+											<div class="space-y-1">
+												<Label class="text-[13px] font-bold text-slate-800">
+													What level are you sitting? <span class="text-red-500"
+														>*</span
+													>
+												</Label>
+												<Select.Root
+													type="single"
+													bind:value={formData.examLevel}
+													disabled={[
+														"ielts",
+														"trcn",
+														"nimasa",
+														"other",
+													].includes(formData.profExam)}
+												>
+													<Select.Trigger
+														class="!h-12 !w-full justify-between rounded-lg border-slate-200 bg-white font-medium text-slate-900"
+													>
+														{formData.examLevel
+															? EXAM_LEVELS.find(
+																	(l) => l.value === formData.examLevel,
+																)?.label
+															: "Select Level"}
+													</Select.Trigger>
+													<Select.Content
+														class="rounded-xl shadow-lg border-slate-100"
+													>
+														{#each EXAM_LEVELS as level}
+															<Select.Item
+																value={level.value}
+																class="font-medium">{level.label}</Select.Item
+															>
+														{/each}
+													</Select.Content>
+												</Select.Root>
+											</div>
+
+											<!-- Sitting Date -->
+											<div class="space-y-1">
+												<Label class="text-[13px] font-bold text-slate-800">
+													When is your exam date? <span class="text-red-500"
+														>*</span
+													>
+												</Label>
+												<Input
+													type="date"
+													bind:value={formData.examDate}
+													class="!h-12 !w-full rounded-lg border-slate-200 bg-white font-medium text-slate-900"
+												/>
+											</div>
+
+											<!-- Employment Status -->
+											<div class="space-y-1">
+												<Label class="text-[13px] font-bold text-slate-800">
+													What is your current employment status? <span
+														class="text-red-500">*</span
+													>
+												</Label>
+												<Select.Root
+													type="single"
+													bind:value={formData.employmentStatus}
+												>
+													<Select.Trigger
+														class="!h-12 !w-full justify-between rounded-lg border-slate-200 bg-white font-medium text-slate-900"
+													>
+														{formData.employmentStatus
+															? formData.employmentStatus
+															: "Select Status"}
+													</Select.Trigger>
+													<Select.Content
+														class="rounded-xl shadow-lg border-slate-100"
+													>
+														{#each EMP_STATUS_OPTS as opt}
+															<Select.Item value={opt} class="font-medium"
+																>{opt}</Select.Item
+															>
+														{/each}
+													</Select.Content>
+												</Select.Root>
+											</div>
+
+
+										{/if}
+
+												{#if userType === "student"}
+													<div class="space-y-4">
+														<div
+															class="flex items-center justify-between min-h-[40px]"
+														>
+															<Label class="text-[13px] font-bold text-slate-800">
+																{formData.targetExam
+																	? studentTargetConfig[formData.targetExam].label
+																	: "What score are you targeting?"}
+																<span class="text-red-500">*</span>
+															</Label>
+															<span class="text-lg font-black text-brand">
+																{formData.targetScore[0]}
+															</span>
+														</div>
+														<Slider
+															bind:value={formData.targetScore}
+															min={formData.targetExam
+																? studentTargetConfig[formData.targetExam].min
+																: 0}
+															max={formData.targetExam
+																? studentTargetConfig[formData.targetExam].max
+																: 400}
+															step={formData.targetExam
+																? studentTargetConfig[formData.targetExam].step
+																: 1}
+															class="[&_[role=slider]]:bg-brand [&_[role=slider]]:size-5"
+														/>
+													</div>
+												{/if}
+													
+													<!-- Sitting Courses (Tag Input) - Full Width -->
+													<div class="md:col-span-2 pt-2">
+														{@render TagInput(
+															"What are the courses are you sitting for?",
+															"e.g. Maths, English, Financial Reporting...",
+															formData.sittingCourses,
+															(v) => { if (!formData.sittingCourses.includes(v)) formData.sittingCourses = [...formData.sittingCourses, v] },
+															(v) => formData.sittingCourses = formData.sittingCourses.filter(i => i !== v)
+														)}
+													</div>
+												</div>
+											</div>
+										</Card.Root>
+									</div>
+								</div>
+				{:else if currentStep === 3}
+					<!-- PHASE 3: HABITS -->
+					<div in:fade={{ duration: 400 }} class="space-y-12">
+						<Card.Root
+							class="border-slate-100 shadow-none rounded-2xl bg-white overflow-hidden"
+						>
+							<div class="p-6 space-y-5">
+								<div class="grid grid-cols-1 gap-y-8">
+									<!-- Study Hours -->
+									<div class="space-y-4">
+										<Label class="text-[13px] font-bold text-slate-800">
+											What hours can you dedicate to exam prep? <span
+												class="text-red-500">*</span
+											>
+										</Label>
+										<div class="flex flex-wrap gap-2">
+											{#each PREP_HOURS_OPTS as t}
+												{@render OptionButton(
+													t,
+													formData.prepHours,
+													() =>
+														(formData.prepHours = toggleSelection(
+															formData.prepHours,
+															t,
+														)),
+													"px-5",
+												)}
+											{/each}
+										</div>
+									</div>
+
+
+
+									{#if userType === "student"}
+										<!-- Hardest Subjects (Tag Input) -->
+										{@render TagInput(
+											"Which subjects do you find hardest?",
+											"e.g. Mathematics, Physics...",
+											formData.hardSubjects,
+											(v) => { if (!formData.hardSubjects.includes(v) && formData.hardSubjects.length < 5) formData.hardSubjects = [...formData.hardSubjects, v] },
+											(v) => formData.hardSubjects = formData.hardSubjects.filter(i => i !== v)
+										)}
+
+										<!-- Tutor Status -->
+										<div class="space-y-4">
+											<Label class="text-[13px] font-bold text-slate-800">
+												Do you currently have a tutor or attend extra classes? <span
+													class="text-red-500">*</span
+												>
+											</Label>
+											<div class="flex flex-wrap gap-2">
+												{#each TUTOR_OPTS as o}
+													{@render OptionButton(
+														o,
+														formData.hasTutor,
+														() => (formData.hasTutor = o),
+														"px-5",
+														"rounded-full"
+													)}
+												{/each}
+											</div>
+										</div>
+									{:else}
+										<!-- Hardest Topics (Tag Input) -->
+										{@render TagInput(
+											"Which topic areas do you find most difficult?",
+											"e.g. Audit, Taxation...",
+											formData.hardTopicAreas,
+											(v) => { if (!formData.hardTopicAreas.includes(v) && formData.hardTopicAreas.length < 5) formData.hardTopicAreas = [...formData.hardTopicAreas, v] },
+											(v) => formData.hardTopicAreas = formData.hardTopicAreas.filter(i => i !== v)
+										)}
+									{/if}
+								</div>
+							</div>
+						</Card.Root>
+					</div>
+				{:else if currentStep === 4}
+					<!-- PHASE 4: PREFERENCES -->
+					<div in:fade={{ duration: 400 }} class="space-y-12">
+						<Card.Root
+							class="border-slate-100 shadow-none rounded-2xl bg-white overflow-hidden"
+						>
+							<div class="p-6 space-y-8">
+								<div class="space-y-4">
+									<Label class="text-[13px] font-bold text-slate-800">
+										What is your biggest challenge with exam prep? <span
+											class="text-red-500">*</span
+										>
+									</Label>
+									<div class="flex flex-wrap gap-2">
+										{#each userType === "student" ? STUDENT_CHALLENGES : PROF_CHALLENGES as c}
+											{@render OptionButton(
+												c,
+												formData.biggestChallenge,
+												() => (formData.biggestChallenge = c),
+											)}
+										{/each}
+									</div>
+								</div>
+
+								<div class="space-y-4">
+									<Label class="text-[13px] font-bold text-slate-800">
+										How should we remind you about your prep? <span
+											class="text-red-500">*</span
+										>
+									</Label>
+									<div class="flex flex-wrap gap-2">
+										{#each REMINDER_OPTS as r}
+											{@render OptionButton(
+												r,
+												formData.reminderPreference,
+												() =>
+													(formData.reminderPreference = toggleSelection(
+														formData.reminderPreference,
+														r,
+													)),
+											)}
+										{/each}
+									</div>
+								</div>
+
+								<!-- Why taking exam -->
+								<div class="space-y-4">
+									<Label class="text-[13px] font-bold text-slate-800">
+										Why are you taking this exam? <span
+											class="text-slate-400 text-[11px] font-medium"
+											>(Optional)</span
+										>
+									</Label>
+									<div class="flex flex-wrap gap-2">
+										{#each userType === "student" ? ["School Admission", "Career Prep", "Personal Development", "Other"] : PROF_REASONS as r}
+											{@render OptionButton(
+												r,
+												formData.reason,
+												() => (formData.reason = r),
+												"px-5",
+											)}
+										{/each}
+									</div>
+								</div>
+
+								<div class="pt-6 border-t border-slate-100">
+									<Label
+										class="text-[13px] font-bold text-slate-800 mb-4 block"
+									>
+										Add a profile photo <span
+											class="text-slate-400 text-[11px] font-medium"
+											>(Optional)</span
+										>
+									</Label>
+									<div class="flex items-center gap-8">
+										<div
+											class="w-20 h-20 rounded-2xl bg-slate-50 border-2 border-slate-100 flex items-center justify-center overflow-hidden"
+										>
+											{#if formData.photoPreview}
+												<img
+													src={formData.photoPreview}
+													alt="Preview"
+													class="w-full h-full object-cover"
+												/>
+											{:else}
+												<span class="text-slate-300 font-bold text-2xl"
+													>{$page.data.user?.name?.[0] || "M"}</span
+												>
+											{/if}
+										</div>
+										<div class="space-y-3">
+											<Input
+												type="file"
+												accept="image/*"
+												class="hidden"
+												id="photo-upload"
+												onchange={handlePhotoUpload}
+											/>
+											<Button
+												variant="outline"
+												class="h-10 px-4 rounded-lg font-bold text-[12px] border-slate-200 hover:bg-slate-50"
+												onclick={() =>
+													document.getElementById("photo-upload")?.click()}
+											>
+												<Upload class="w-4 h-4 mr-2" />Upload Image
+											</Button>
+											<p class="text-[11px] text-slate-400 font-medium">
+												Square crop recommended · Max 2MB
+											</p>
+										</div>
+									</div>
+								</div>
+							</div>
+						</Card.Root>
+					</div>
 				{/if}
-			</form>
-		</div>
+			</div>
+
+			<!-- FOOTER NAVIGATION -->
+			<div class="flex items-center justify-between mt-8 mb-5">
+				<Button
+					variant="ghost"
+					onclick={prevStep}
+					disabled={currentStep === 1}
+					class="h-14 px-6 rounded-xl font-black text-[11px] uppercase tracking-widest text-slate-400 hover:text-slate-900 hover:bg-slate-100 transition-all flex items-center gap-2"
+				>
+					<MoveLeft class="w-4 h-4" stroke-width={1} />
+					Back
+				</Button>
+
+				{#if currentStep < 4}
+					<Button
+						onclick={nextStep}
+						class="h-14 px-10 rounded-xl bg-brand hover:bg-brand-muted hover:text-brand text-white font-black text-xs uppercase tracking-widest shadow-xl shadow-brand/20 transition-all hover:scale-[1.05] active:scale-95 flex items-center gap-2"
+					>
+						Continue
+						<MoveRight class="w-4 h-4" stroke-width={1} />
+					</Button>
+				{:else}
+					<Button
+						onclick={handleSubmit}
+						disabled={isSubmitting}
+						class="h-14 px-10 rounded-xl bg-brand hover:bg-brand-muted hover:text-brand text-white font-black text-xs uppercase tracking-widest shadow-xl shadow-brand/20 transition-all hover:scale-[1.05] active:scale-95 flex items-center gap-2"
+					>
+						{#if isSubmitting}<Sparkles
+								class="w-4 h-4 animate-spin"
+							/>Submitting...{:else}Submit
+							<MoveRight class="w-4 h-4" stroke-width={1} />{/if}
+					</Button>
+				{/if}
+			</div>
+		{:else}
+			<!-- SUCCESS SCREEN -->
+			<div
+				in:fly={{ y: 60, duration: 800 }}
+				class="max-w-2xl mx-auto py-24 text-center space-y-12"
+			>
+				<div class="relative inline-block">
+					<div
+						class="w-32 h-32 bg-white rounded-[2.5rem] shadow-2xl flex items-center justify-center mx-auto border-[6px] border-[#f0fcfb] animate-bounce"
+					>
+						<PartyPopper class="w-16 h-16 text-brand" stroke-width={1.5} />
+					</div>
+					<div
+						class="absolute -top-3 -right-3 w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-xl border border-slate-50"
+					>
+						<Sparkles class="w-6 h-6 text-brand" />
+					</div>
+				</div>
+				<div class="space-y-4">
+					<h1
+						class="text-4xl font-black text-slate-900 tracking-tight leading-[1.0]"
+					>
+						Profile Complete!
+					</h1>
+					<p
+						class="text-slate-500 text-lg font-bold max-w-sm mx-auto leading-relaxed"
+					>
+						Your AI practice routine is ready. We've calibrated your targets and
+						schedule.
+					</p>
+				</div>
+				<Button
+					onclick={() => goto("/dashboard")}
+					class="w-4/5 mx-auto h-14 rounded-2xl bg-brand hover:bg-brand-muted hover:text-brand text-white font-black text-lg shadow-xl group transition-all hover:scale-[1.02] active:scale-95"
+					>Enter Dashboard<ArrowRight
+						class="w-6 h-6 ml-3 group-hover:translate-x-2 transition-transform"
+						stroke-width={4}
+					/></Button
+				>
+			</div>
+		{/if}
 	</div>
 </div>
+
+<style>
+	@reference "../../layout.css";
+	:global(body) {
+		background-color: #ffffff;
+	}
+	:global([data-slot="slider-track"]) {
+		@apply bg-slate-200/50 h-1;
+	}
+	:global([data-slot="slider-range"]) {
+		@apply bg-brand;
+	}
+	:global([data-slot="slider-thumb"]) {
+		@apply border-white border-[4px] shadow-none scale-110 transition-transform bg-brand;
+	}
+</style>

@@ -6,7 +6,7 @@
 		ArrowUpRight,
 		CirclePlus,
 		Package,
-	} from "lucide-svelte";
+	} from "@lucide/svelte";
 
 	let isSecondCardHovered = $state(false);
 	let isThirdCardHovered = $state(false);

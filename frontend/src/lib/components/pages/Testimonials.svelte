@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Star, Quote } from "lucide-svelte";
+	import { Star, Quote } from "@lucide/svelte";
 	import * as Card from "$lib/components/ui/card/index.js";
 	import { Badge } from "$lib/components/ui/badge/index.js";
 

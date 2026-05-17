@@ -1,7 +1,5 @@
 <script lang="ts">
-	import Mail from "lucide-svelte/icons/mail";
-	import ArrowLeft from "lucide-svelte/icons/arrow-left";
-	import RefreshCw from "lucide-svelte/icons/refresh-cw";
+	import { Mail, ArrowLeft, RefreshCw } from "@lucide/svelte";
 	import { Button } from "$lib/components/ui/button";
 	import { goto } from "$app/navigation";
 	import { onMount } from "svelte";

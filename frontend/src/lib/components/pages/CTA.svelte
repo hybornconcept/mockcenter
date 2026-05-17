@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { ArrowRight, MoveUpRight } from "lucide-svelte";
+	import { ArrowRight, MoveUpRight } from "@lucide/svelte";
 	import { onMount } from "svelte";
 
 	let days = $state(37);

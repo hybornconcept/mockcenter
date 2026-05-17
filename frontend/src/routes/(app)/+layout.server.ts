@@ -7,7 +7,7 @@ import type { LayoutServerLoad } from './$types';
  * the user in locals — so we just read from there (no extra fetch).
  */
 export const load: LayoutServerLoad = async ({ locals, url }) => {
-  const user = locals.user as any;
+  const user = await locals.getUser() as any;
 
   // Unauthenticated users must log in
   if (!user) {
@@ -20,11 +20,8 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
     throw redirect(302, '/admin');
   }
 
-  // Regular users who haven't completed onboarding must go to /onboarding
-  // (Allow /onboarding itself through so they can complete it)
-  if (!user.isAdmin && !user.targetExam && url.pathname !== '/onboarding') {
-    throw redirect(302, '/onboarding');
-  }
+  // Regular users who haven't completed onboarding will be prompted on the client side.
+  // We no longer redirect them automatically so they can see the layout.
 
   // Email verification is bypassed until production deployment
   // const isVerified = user?.emailVerified === 'true' || user?.emailVerified === true;

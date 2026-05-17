@@ -1,15 +1,16 @@
 <script lang="ts">
 	import {
-		CheckSquare, Clock, Zap, Bot, Check, AlertTriangle, Hourglass, Target, Dna, Calculator, Atom, ChevronDown, MoreHorizontal
-	} from "lucide-svelte";
+		CheckSquare, Clock, Zap, Bot, Check, AlertTriangle, Hourglass, Target, Dna, Calculator, Atom, ChevronDown, MoreHorizontal, TrendingUp, FileText, Timer
+	} from "@lucide/svelte";
 	import * as Card from "$lib/components/ui/card/index.js";
 	import { Badge } from "$lib/components/ui/badge/index.js";
 	import * as Tabs from "$lib/components/ui/tabs/index.js";
 	import * as Select from "$lib/components/ui/select/index.js";
+	import Empty from "$lib/components/Empty.svelte";
 
 	let { data } = $props();
 
-	const iconMap = { CheckSquare, Clock, Zap, Bot, Check, AlertTriangle, Hourglass, Target, Dna, Calculator, Atom };
+	const iconMap = { CheckSquare, Clock, Zap, Bot, Check, AlertTriangle, Hourglass, Target, Dna, Calculator, Atom, TrendingUp, FileText, Timer };
 
 	const metricBadgeThemes = {
 		green: "bg-[#f0fdf4] text-[#166534]",
@@ -161,6 +162,10 @@
 							<button class="px-3 py-1 text-[11px] font-bold text-brand bg-white border border-brand/30 rounded-lg hover:bg-brand/5 transition-colors shadow-[0_1px_2px_rgba(0,0,0,0.02)]">Review</button>
 							<button class="px-3 py-1 text-[11px] font-bold text-gray-500 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors shadow-[0_1px_2px_rgba(0,0,0,0.02)]">Retry</button>
 						</div>
+					</div>
+				{:else}
+					<div class="py-12">
+						<Empty title="No test history" message="You haven't completed any tests matching these filters." />
 					</div>
 				{/each}
 			</div>

@@ -6,7 +6,7 @@ import { redirect, fail } from '@sveltejs/kit';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	const form = await superValidate(valibot(loginSchema));
-	return { form, user: locals.user };
+	return { form, user: await locals.getUser() };
 };
 
 export const actions: Actions = {

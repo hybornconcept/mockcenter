@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Bot, Zap, Target, LineChart, Map as MapIcon } from "lucide-svelte";
+	import { Bot, Zap, Target, LineChart, Map as MapIcon } from "@lucide/svelte";
 
 	const features = [
 		{

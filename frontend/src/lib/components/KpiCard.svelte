@@ -28,20 +28,20 @@
 		/>
 	{/if}
 	<span
-		class="relative z-10 block text-[11px] font-bold tracking-widest text-gray-400 uppercase mb-2.5"
+		class="relative z-10 block text-[10px] font-semibold tracking-widest text-gray-400 uppercase mb-2.5"
 		>{title}</span
 	>
 	<span
-		class="relative z-10 block text-[28px] font-bold leading-none tracking-tight text-slate-800 transition-colors group-hover:text-brand mb-3"
+		class="relative z-10 block text-[24px] font-semibold leading-none tracking-tight text-slate-800 transition-colors group-hover:text-brand mb-3"
 		>{value}</span
 	>
 	<div class="relative z-10 flex w-full items-center justify-between">
-		<span class="text-[10px] font-medium leading-none text-gray-400"
+		<span class="text-[9px] font-medium leading-none text-gray-400"
 			>{subtext}</span
 		>
 		<Badge
 			variant="outline"
-			class="rounded-full border-brand/20 bg-brand-muted px-2 py-[2px] text-[8px] font-bold uppercase leading-none tracking-widest text-brand-dark"
+			class="rounded-full border-brand/20 bg-brand-muted px-2 py-[2px] text-[8px] font-semibold uppercase leading-none tracking-widest text-brand-dark"
 			>{badgeText}</Badge
 		>
 	</div>

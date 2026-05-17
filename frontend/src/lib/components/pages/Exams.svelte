@@ -7,7 +7,7 @@
 		Library,
 		CalendarDays,
 		Timer,
-	} from "lucide-svelte";
+	} from "@lucide/svelte";
 
 	const exams = [
 		{

@@ -19,9 +19,10 @@
 		BookOpen,
 		Play,
 		Tag,
-	} from "lucide-svelte";
+	} from "@lucide/svelte";
 	import { Badge } from "$lib/components/ui/badge/index.js";
 	import * as Select from "$lib/components/ui/select/index.js";
+	import Empty from "$lib/components/Empty.svelte";
 
 	let { data } = $props();
 
@@ -548,23 +549,12 @@
 						</div>
 					</div>
 				{:else}
-					<div
-						class="bg-white rounded-2xl border border-dashed border-slate-200 p-20 flex flex-col items-center justify-center text-center space-y-4 antialiased"
-					>
-						<div
-							class="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center"
-						>
-							<Search class="w-8 h-8 text-slate-300" />
-						</div>
-						<div class="space-y-1">
-							<h3 class="text-[16px] font-bold text-slate-800">
-								No bookmarks found
-							</h3>
-							<p class="text-[13px] text-slate-400 max-w-[280px]">
-								We couldn't find any questions matching your current search or
-								filter parameters.
-							</p>
-						</div>
+					<Empty 
+						title="No bookmarks found" 
+						message="We couldn't find any questions matching your current search or filter parameters." 
+						icon={Search} 
+					/>
+					<div class="flex justify-center -mt-8 relative z-10 pb-8">
 						<button
 							class="text-brand font-bold text-[13px] hover:underline"
 							onclick={() => {
@@ -690,6 +680,8 @@
 								class="w-3.5 h-3.5 text-slate-200 -rotate-90 group-hover:text-brand transition-all"
 							/>
 						</button>
+					{:else}
+						<Empty title="No collections" message="You haven't created any collections yet." icon={Folder} compact />
 					{/each}
 					<button
 						class="w-full h-11 border-2 border-dashed border-slate-100 rounded-xl text-[12px] font-bold text-slate-400 hover:border-brand/40 hover:text-brand hover:bg-brand-muted/10 transition-all flex items-center justify-center gap-2 mt-2"
@@ -733,6 +725,8 @@
 								></div>
 							</div>
 						</div>
+					{:else}
+						<Empty title="No performance data" message="No performance metrics available." icon={Folder} compact />
 					{/each}
 				</div>
 			</div>

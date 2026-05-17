@@ -5,7 +5,7 @@ import { registerSchema } from '$lib/schemas';
 import type { PageServerLoad, Actions } from './$types';
 
 export const load: PageServerLoad = async ({ locals }) => {
-	const user = locals.user ?? null;
+	const user = await locals.getUser() ?? null;
 
 	// If the user is already signed in and has completed onboarding, send to dashboard
 	if (user && (user as any).targetExam) {

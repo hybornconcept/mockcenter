@@ -2,7 +2,7 @@
 	import { Button } from "$lib/components/ui/button/index.js";
 	import * as Card from "$lib/components/ui/card/index.js";
 	import { Separator } from "$lib/components/ui/separator/index.js";
-	import { X, Delete, Percent, Divide, Plus, Minus, Equal, Hash, FlaskConical, ChevronRight, ChevronLeft } from "lucide-svelte";
+	import { X, Delete, Percent, Divide, Plus, Minus, Equal, Hash, FlaskConical, ChevronRight, ChevronLeft } from "@lucide/svelte";
 	import { fly, slide } from "svelte/transition";
 
 	let { onClose }: { onClose?: () => void } = $props();

@@ -47,7 +47,7 @@ export const handle: Handle = async ({ event, resolve }) => {
   
   // Protected app routes
   const appRoutes = [
-    '/dashboard', '/quiz', '/questions', '/start_practice',
+    '/dashboard', '/quiz', '/start_practice', '/configure',
     '/results', '/analytics', '/bookmarks', '/notifications', '/referrals',
     '/onboarding',
   ];
@@ -60,23 +60,31 @@ export const handle: Handle = async ({ event, resolve }) => {
     return resolve(event);
   }
 
-  // 4. Fetch session
-  const cookieHeader = event.request.headers.get('cookie') ?? '';
   const isAppRoute = appRoutes.some(r => path.startsWith(r));
   const isAdminRoute = adminRoutes.some(r => path.startsWith(r));
 
-  const user = await getSessionUser(cookieHeader, event.fetch);
+  let _userPromise: Promise<Record<string, unknown> | null> | undefined = undefined;
 
-  // 5. Expose user via locals so page load functions don't need to re-fetch
-  event.locals.user = user as App.Locals['user'];
+  event.locals.getUser = async () => {
+    if (_userPromise !== undefined) return _userPromise;
+    const cookieHeader = event.request.headers.get('cookie') ?? '';
+    _userPromise = getSessionUser(cookieHeader, event.fetch);
+    return _userPromise;
+  };
+
+  // We can default `user` to null since pages will use `await locals.getUser()`
+  event.locals.user = null;
 
   // 6. Routing logic
-  const isLoggedIn = !!user;
-  // Email verification is bypassed until production deployment
-  const isVerified = true; // user?.emailVerified === 'true' || user?.emailVerified === true;
-  const isOnboarded = !!user?.targetExam;
-  const isAdmin = !!(user as any)?.isAdmin;
   const isAuthPage = authRoutes.some(r => path === r || path.startsWith(r + '/'));
+  const isProtectedOrAuth = isAppRoute || isAdminRoute || isAuthPage;
+
+  if (path === '/' || isProtectedOrAuth) {
+    const user = await event.locals.getUser();
+    const isLoggedIn = !!user;
+    const isVerified = true;
+    const isOnboarded = !!user?.targetExam;
+    const isAdmin = !!(user as any)?.isAdmin;
 
   if (isLoggedIn) {
     // ── Root path redirect (e.g. after Google OAuth sets a cookie) ────────────
@@ -107,12 +115,11 @@ export const handle: Handle = async ({ event, resolve }) => {
         throw redirect(302, '/dashboard');
       }
     }
-  }
-
-  // 7. Unauthenticated users trying to access protected routes → login
-  if (!isLoggedIn && (isAppRoute || isAdminRoute)) {
+  } else if (!isLoggedIn && (isAppRoute || isAdminRoute)) {
+    // 7. Unauthenticated users trying to access protected routes → login
     throw redirect(302, `/login?redirectTo=${encodeURIComponent(path)}`);
   }
+  } // close if (path === '/' || isProtectedOrAuth)
 
   return resolve(event);
 };

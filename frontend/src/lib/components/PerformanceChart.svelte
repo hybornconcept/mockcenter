@@ -5,7 +5,7 @@
 	import { scaleBand } from "d3-scale";
 	import { BarChart, Labels, Highlight } from "layerchart";
 	import { cubicInOut } from "svelte/easing";
-	import { TrendingUp } from "lucide-svelte";
+	import { TrendingUp } from "@lucide/svelte";
 
 	let { subjectPerformance } = $props<{
 		subjectPerformance: Array<{

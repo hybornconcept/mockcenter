@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Plus, HelpCircle, ChevronDown } from "lucide-svelte";
+	import { Plus, HelpCircle, ChevronDown } from "@lucide/svelte";
 	import * as Accordion from "$lib/components/ui/accordion/index.ts";
 
 	const faqs = [

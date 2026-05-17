@@ -10,7 +10,7 @@
 		TrendingUp,
 		ScrollText,
 		LoaderPinwheel,
-	} from "lucide-svelte";
+	} from "@lucide/svelte";
 
 	const subjects = [
 		{
